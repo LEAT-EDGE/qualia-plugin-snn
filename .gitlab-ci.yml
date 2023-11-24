@@ -32,6 +32,7 @@ check-job:
   script:
     - pip install --break-system-packages -e .[codegen,lint,typecheck] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
     - pip install --break-system-packages -U torch # Temporarily upgrade torch with pip until official repos have at least 2.1.0
+    - sed "s|import torch._C as _C|from . import _C as _C|g" -i /usr/lib/python3.11/site-packages/torch/__init__.py # Temporary workaround for compatibility with mypy 1.7, remove with next PyTorch release
     - ruff check src || ((exit_code|=$?))
     - mypy || ((exit_code|=$?))
     - $(exit $exit_code)
