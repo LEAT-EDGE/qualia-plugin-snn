@@ -23,14 +23,14 @@ stages:          # List of stages for jobs, and their order of execution
 .test-job:       # This job runs in the build stage, which runs first.
   stage: test
   script:
-    - pip install --break-system-packages -e .[tests,pytorch,tensorflow,gtsrb] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
+    - pip install --pre --break-system-packages -e .[tests,pytorch,tensorflow,gtsrb] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
     - pytest -m "not dependency and not deploy" -n auto --dist=loadgroup -vvv -s # xdist incompatible with dependency
     - pytest -m "dependency and not deploy" -vvv -s
 
 check-job:
   stage: check
   script:
-    - pip install --break-system-packages -e .[codegen,lint,typecheck] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
+    - pip install --pre --break-system-packages -e .[codegen,lint,typecheck] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
     - pip install --break-system-packages -U torch # Temporarily upgrade torch with pip until official repos have at least 2.1.0
     - sed "s|import torch._C as _C|from . import _C as _C|g" -i /usr/lib/python3.11/site-packages/torch/__init__.py # Temporary workaround for compatibility with mypy 1.7, remove with next PyTorch release
     - ruff check src || ((exit_code|=$?))
@@ -64,7 +64,7 @@ doc-job:
     - pacman -S --noconfirm --needed python-blosc2 python-gitpython python-pycryptodome python-pyserial python-scikit-learn
     - pacman -S --noconfirm --needed python-tabulate python-fsspec python-aiohttp
   script:
-    - pip install --break-system-packages -e .[docs] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
+    - pip install --pre --break-system-packages -e .[docs] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
     - make -C docs html
     - read RCLONE_SFTP_PASS < <(rclone obscure - < ${GITLAB_LDAP_PASSWORD}) && export RCLONE_SFTP_PASS
     - rclone sync --sftp-host naixtech.unice.fr --sftp-user gitlab docs/_build/html :sftp:/gitlab/public_html/docs/qualia-plugin-snn
