@@ -1,0 +1,146 @@
+[bench]
+name = "CIFAR10_SResNetv1_float32_train"
+seed = 1
+first_run = 1
+last_run = 1
+plugins = ['qualia_plugin_snn']
+
+[learningframework]
+kind = 'SpikingJelly'
+
+[deploy]
+target = 'Linux'
+converter.kind = 'QualiaCodeGen'
+quantize = ['float32']
+optimize = ['']
+compress = [1]
+#limit = 50
+
+[dataset]
+kind = "CIFAR10"
+params.path = "data/cifar-10-batches-py/"
+
+[[preprocessing]]
+kind = "Class2BinMatrix"
+
+[[preprocessing]]
+kind = "Normalize"
+params.method = 'z-score'
+params.axis = 0
+params.debug = true
+
+[model_template]
+kind = "SResNet"
+epochs = 60
+batch_size = 512
+params.prepool 		= 1
+params.strides		= [1, 2]
+params.num_blocks	= [2]
+params.dims		    = 2
+params.timesteps    = 4
+
+[model_template.optimizer]
+#kind = "SGD"
+kind = "Adam"
+params.lr               = 0.04
+#params.momentum		= 0.9
+params.weight_decay	= 5e-4
+
+[model_template.optimizer.scheduler]
+#kind = "MultiStepLR"
+#params.milestones	= [20, 40, 50]
+#params.gamma		
+kind='SinDescent'
+params.epoch  = 60
+params.w      = 3
+params.lr0    = 0.04
+params.lrf    = 0.0001
+params.pme    = 0.01
+
+[[model]]
+name = "cifar10_sresnetv1_8_ATIF"
+params.filters 		= [8, 8]
+params.kernel_sizes 	= [3, 3]
+params.paddings		= [1, 1]
+params.batch_norm 	= true
+disabled = true
+params.neuron.kind                = 'ATIF'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0
+params.neuron.params.T            = 4
+
+[[model]]
+name = "cifar10_sresnetv1_8"
+params.filters 		= [8, 8]
+params.kernel_sizes 	= [3, 3]
+params.paddings		= [1, 1]
+params.batch_norm 	= true
+params.neuron.kind                = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0
+params.neuron.params.tau          = 2.0
+disabled = true
+
+[[model]]
+name = "cifar10_sresnetv1_16"
+params.filters 		= [16, 16]
+params.kernel_sizes 	= [3, 3]
+params.paddings		= [1, 1]
+params.batch_norm 	= true
+params.neuron.kind                = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0
+params.neuron.params.tau          = 2.0
+disabled = true
+
+[[model]]
+name = "cifar10_sresnetv1_32"
+params.filters 		= [32, 32]
+params.kernel_sizes 	= [3, 3]
+params.paddings		= [1, 1]
+params.batch_norm 	= true
+params.neuron.kind                = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0
+params.neuron.params.tau          = 2.0
+disabled = true
+
+[[model]]
+name = "cifar10_sresnetv1_64"
+params.filters 		= [64, 64]
+params.kernel_sizes 	= [3, 3]
+params.paddings		= [1, 1]
+params.batch_norm 	= true
+params.neuron.kind                = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0
+params.neuron.params.tau          = 2.0
+disabled = true
+
+
+[[model]]
+name = "cifar10_sresnetv1-10"
+params.filters 		= [64, 64, 128]
+params.kernel_sizes 	= [7, 3, 3]
+params.strides		= [1, 2, 2]
+params.paddings		= [3, 1, 1]
+params.num_blocks	= [2, 2]
+params.batch_norm 	= true
+params.neuron.kind                = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0
+params.neuron.params.tau          = 2.0
+disabled = false
+
+[[model]]
+name = 'cifar10_SResNet_64_64_64_SND_LIF'
+params.filters      = [64, 64, 64]
+params.kernel_sizes = [7, 3, 3]
+params.paddings = [3, 1, 1]
+params.strides = [1, 1]
+params.num_blocks = [3]
+disabled = false
+params.neuron.kind = 'LIFNode'
+params.neuron.params.v_threshold= 1.0
+params.neuron.params.v_reset= 0
+params.neuron.params.tau= 2.0

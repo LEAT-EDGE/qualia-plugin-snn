@@ -1,0 +1,102 @@
+[bench]
+name        = 'GSC_SResNetv1-8_ICONIP_livemfcc_float32_train'
+seed        = 2
+first_run   = 1
+last_run    = 3
+plugins     = ['qualia_plugin_snn']
+
+[learningframework]
+kind            = 'SpikingJelly'
+params.devices  = [1]
+
+[deploy]
+target          = 'Linux'
+converter.kind  = 'QualiaCodeGen'
+quantize        = ['float32']
+optimize        = ['']
+compress        = [1]
+
+[dataset]
+kind            = 'GSC'
+params.variant  = 'v2'
+params.path     = "datasets/SpeechCommands/speech_commands_v0.02/"
+params.subset   = 'no_background_noise'
+
+[[preprocessing]]
+kind            = 'Class2BinMatrix'
+
+[[preprocessing]]
+kind            = 'Normalize'
+params.method   = 'z-score'
+params.axis     = 0
+params.debug    = true
+
+[[data_augmentation]]
+kind            = 'GaussianNoise'
+params.sigma    = 0.00175
+
+[[data_augmentation]]
+kind            = 'TimeWarping'
+params.sigma    = 0.0675
+
+[[data_augmentation]]
+kind            = 'TimeShifting'
+params.alpha    = 1.0
+
+[[data_augmentation]]
+kind                            = 'MFCC'
+params.evaluate                 = true
+params.sample_rate              = 16000
+#params.n_mfcc                   = 64
+params.n_mfcc                   = 10
+params.log_mels                 = true
+params.melkwargs.n_fft          = 1024
+params.melkwargs.n_mels         = 40
+#params.melkwargs.win_length     = 1024
+params.melkwargs.win_length     = 640
+#params.melkwargs.hop_length     = 128
+fparams.melkwargs.hop_length    = 320
+params.melkwargs.f_min          = 20
+params.melkwargs.f_max          = 4000
+params.melkwargs.pad            = 320
+params.melkwargs.center         = false
+
+[model_template]
+kind                = 'SResNet'
+epochs              = 200
+batch_size          = 800
+params.input_shape  = [49, 10]
+params.batch_norm   = true
+params.bn_momentum  = 0.1
+params.dims         = 1
+params.prepool      = 1
+params.timesteps    = 4
+params.neuron.kind                  = 'LIFNode'
+params.neuron.params.v_threshold    = 1.0
+params.neuron.params.v_reset        = 0
+params.neuron.params.tau            = 2.0
+
+
+[model_template.optimizer]
+kind                = "Adam"
+params.lr           = 0.04
+params.weight_decay = 0
+
+[model_template.optimizer.scheduler]
+kind            ='CosineAnnealingLR'
+params.T_max    = 200
+params.eta_min  = 0.00001
+
+
+[[postprocessing]]
+kind    = 'FuseBatchNorm'
+export  = true
+
+[[model]]
+name                = 'GSC_SResNet-8_ICONIP_float'
+params.filters      = [64, 64]
+params.kernel_sizes = [7, 3]
+params.paddings     = [3, 1]
+params.strides      = [1, 1]
+params.num_blocks   = [3]
+disabled            = false

@@ -1,0 +1,137 @@
+[bench]
+name        = 'cifar10_SVGG_SCNN_16_float'
+seed        = 4
+first_run   = 1
+last_run    = 3
+plugins     = ['qualia_plugin_snn']
+
+
+[learningframework]
+kind                = 'SpikingJelly'
+params.devices      = [0]
+params.precision    = '16-mixed'
+
+[deploy]
+target                  = 'Linux'
+converter.kind          = 'QualiaCodeGen'
+quantize                = ['float32']
+optimize                = ['']
+compress                = [1]
+#limit                   = 50
+
+[dataset]
+kind            = 'CIFAR10'
+params.path     = 'data/cifar-10-batches-py/'
+params.dtype    = "uint8" # Keep uint8 dtype instead of converting to float32 for AutoAugment
+
+#[[data_augmentation]]
+#kind = 'AutoAugment'
+#params.policy = 'CIFAR10'
+#params.before = true
+#params.after = false
+##params.before = true
+##params.after = false
+
+[[data_augmentation]]
+kind = 'HorizontalFlip'
+params.before = false
+params.after = true
+
+[[data_augmentation]]
+kind = 'Crop'
+params.size = [32, 32]
+params.padding = [4, 4]
+params.before = false
+params.after = true
+
+# Convert to Float32 and scale by 255 after AutoAugment
+[[data_augmentation]]
+kind = 'IntToFloat32'
+params.scale = true
+params.before = false
+params.after = true
+params.evaluate = true
+
+[[data_augmentation]]
+kind = 'Mixup'
+params.before = false
+params.after = true
+
+[[preprocessing]]
+kind = 'Class2BinMatrix'
+
+[[postprocessing]]
+kind    = 'FuseBatchNorm'
+export  = true
+
+[model_template]
+kind                    = 'SCNN'
+epochs                  = 200
+batch_size              = 64
+params.dims             = 2
+params.prepool          = 1
+#params.input_shape     = [32, 32, 3]
+params.filters          = [ 64, 64, 128, 128, 256, 256, 256, 512, 512, 512, 512, 512, 512]
+params.kernel_sizes     = [  3,  3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3]
+params.paddings         = [  1,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1]
+params.strides          = [  1,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1]
+params.pool_sizes       = [  0,  2,   0,   2,   0,   0,   2,   0,   0,   2,   0,   0,   2]
+#params.fc_units         = [4096, 4096] # Original VGG
+params.fc_units         = [512, 512] # Modified for CIFAR10
+params.batch_norm       = true
+params.timesteps        = 4
+
+[model_template.optimizer]
+kind='SGD'
+params.lr             = 5e-2
+params.momentum       = 0.9
+params.weight_decay   = 0
+
+[model_template.optimizer.scheduler]
+kind='StepLR'
+params.gamma      = 0.5
+params.step_size  = 30
+
+[[model]]
+name = 'cifar10_SCNN_SVGG_16_D_float_if_hard'
+disabled            = true
+params.neuron.kind = 'IFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0.0
+
+[[model]]
+name = 'cifar10_SCNN_SVGG_16_D_float_lif_hard'
+disabled            = false
+params.neuron.kind = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0.0
+params.neuron.params.tau          = 2.0
+
+[[model]]
+name = 'cifar10_SCNN_SVGG_16_D_scnn_float_atif_hard'
+disabled            = true
+params.neuron.kind = 'ATIF'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0.0
+
+[[model]]
+name = 'cifar10_SCNN_SVGG_16_D_float_if_soft'
+disabled            = true
+params.neuron.kind = 'IFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = false
+
+[[model]]
+name = 'cifar10_SCNN_SVGG_16_D_float_lif_soft'
+disabled            = false
+params.neuron.kind = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = false
+params.neuron.params.tau          = 2.0
+
+[[model]]
+name = 'cifar10_SCNN_SVGG_16_D_float_atif_soft'
+disabled            = true
+params.neuron.kind = 'ATIF'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = false

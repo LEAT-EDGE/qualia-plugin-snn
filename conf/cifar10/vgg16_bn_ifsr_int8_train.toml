@@ -1,0 +1,118 @@
+# Spiking VGG16 configuration for CIFAR10 from Andrea Castagnetti, vgg-cifar10-light/vgg16_ifsr_cifar10_lightning.ipynb
+
+[bench]
+name = "CIFAR10_vgg16_bn_ifsr_int8_train"
+seed = 1
+first_run = 1
+last_run = 1
+plugins = ['qualia_plugin_snn']
+
+[learningframework]
+kind = 'SpikingJellyMultiStep'
+params.devices = 1
+params.precision = '16-mixed'
+
+[experimenttracking]
+kind = "ClearML"
+params.project_name = "CIFAR10"
+params.task_name = "CIFAR10_vgg16_bn_ifsr_int8_train"
+
+[deploy]
+target = 'Linux'
+converter.kind = 'QualiaCodeGen'
+quantize = ['int8']
+optimize = ['']
+compress = [1]
+
+[dataset]
+kind = "CIFAR10"
+params.path = "data/cifar-10-batches-py/"
+params.dtype = "uint8" # Keep uint8 dtype instead of converting to float32 for AutoAugment
+
+[[data_augmentation]]
+kind = "HorizontalFlip"
+params.before = true # Run on CPU
+params.after = false
+
+[[data_augmentation]]
+kind = "Crop"
+params.size = [32, 32]
+params.padding = [4, 4]
+params.before = true # Run on CPU
+params.after = false
+
+[[data_augmentation]]
+kind = "AutoAugment"
+params.policy = "CIFAR10"
+params.before = true # Run on CPU
+params.after = false
+
+# Convert to Float32 and scale by 255 after AutoAugment
+[[data_augmentation]]
+kind = "IntToFloat32"
+params.scale = true
+params.before = true # Run on CPU
+params.after = false
+params.evaluate = true # Also run during inference
+
+[[data_augmentation]]
+kind = "Mixup"
+params.before = false
+params.after = true # Run on GPU
+
+[[preprocessing]]
+kind = "Class2BinMatrix"
+
+[[postprocessing]]
+kind                = "QuantizationAwareTraining"
+export              = true
+params.epochs       = 300
+params.batch_size   = 64
+params.model.params.quant_params.bits           = 8
+params.model.params.quant_params.quantype       = "fxp"
+params.model.params.quant_params.roundtype      = "floor"
+params.model.params.quant_params.range_setting  = "minmax"
+params.model.params.quant_params.input.quant_enable=false
+params.model.params.quant_params.LSQ            = false
+
+[model_template]
+kind                = "SCNN"
+epochs              = 0
+batch_size          = 64
+params.dims		    = 2
+params.prepool 		= 1
+load = true
+train = false
+evaluate = false
+
+[model_template.optimizer]
+kind = "SGD"
+params.lr = 0.05
+params.momentum = 0.9
+params.weight_decay	= 0
+
+[model_template.optimizer.scheduler]
+kind = "StepLR"
+params.gamma = 0.5
+params.step_size = 30
+
+# Latent space (before Flatten) is 1×1×512
+[[model]]
+name = "cifar10_vgg16_bn_ifsr"
+params.filters      = [ 64, 64, 128, 128, 256, 256, 256, 512, 512, 512, 512, 512, 512]
+params.kernel_sizes = [  3,  3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3]
+params.paddings     = [  1,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1]
+params.strides      = [  1,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1]
+params.pool_sizes   = [  0,  2,   0,   2,   0,   0,   2,   0,   0,   2,   0,   0,   2]
+params.dropouts     = [  0,  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0]
+#params.fc_units     = [4096, 4096] # Original VGG
+params.fc_units     = [512, 512] # Modified for CIFAR10
+params.batch_norm 	= true
+params.timesteps    = 4
+params.neuron.kind  = 'IFNode'
+params.neuron.params.v_reset = false # Soft reset
+params.neuron.params.v_threshold = 1.0
+params.neuron.params.detach_reset = true
+params.neuron.params.step_mode = 'm' # Multi-step mode, make sure to use SpikingJellyMultiStep learningframework
+params.neuron.params.backend = 'torch'
+disabled = false

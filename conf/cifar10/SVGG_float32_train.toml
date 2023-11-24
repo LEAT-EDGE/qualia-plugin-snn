@@ -1,0 +1,107 @@
+[bench]
+name = "CIFAR10_SVGG_float32_train"
+seed = 1
+first_run = 1
+last_run = 1
+plugins = ['qualia_plugin_snn']
+
+[learningframework]
+kind = 'SpikingJelly'
+
+[experimenttracking]
+kind = "ClearML"
+params.project_name = "CIFAR10"
+params.task_name = "CIFAR10_SVGG_float32_train"
+
+[deploy]
+target = 'Linux'
+converter.kind = 'QualiaCodeGen'
+quantize = ['float32']
+optimize = ['']
+compress = [1]
+#limit = 50
+
+[dataset]
+kind = "CIFAR10"
+params.path = "data/cifar-10-batches-py/"
+
+[[preprocessing]]
+kind = "Normalize"
+params.method = 'z-score'
+params.axis = 0
+params.debug = true
+
+[[data_augmentation]]
+kind = "Mixup"
+
+[[data_augmentation]]
+kind = "GaussianNoise"
+params.sigma = 0.005
+
+[[data_augmentation]]
+kind = "HorizontalFlip"
+
+[[data_augmentation]]
+kind = "Rotation2D"
+params.angle = [-5, 5]
+
+[[data_augmentation]]
+#kind = "Crop"
+kind = "ResizedCrop"
+params.size = [32, 32]
+#params.padding = [4, 4]
+
+[[preprocessing]]
+kind = "Class2BinMatrix"
+
+[model_template]
+kind                = "SCNN"
+epochs              = 200
+batch_size          = 215
+params.dims		    = 2
+params.prepool 		= 1
+#params.input_shape  = [32, 32, 3]
+params.timesteps    = 4
+params.batch_norm	= true
+params.neuron.kind                = 'LIFNode'
+params.neuron.params.v_threshold  = 1.0
+params.neuron.params.v_reset      = 0.0
+params.neuron.params.tau          = 2.0
+
+[model_template.optimizer]
+#kind                    = "SGD"
+kind                    = "Adam"
+params.lr               = 0.04
+#params.momentum		 = 0.9
+params.weight_decay	    = 0
+
+[model_template.optimizer.scheduler]
+kind            ='CosineAnnealingLR'
+params.T_max    = 200
+params.eta_min  = 0.00001
+
+# Latent space (before Flatten) is 1×1×512
+[[model]]
+name = "cifar10_SVGG-11-A"
+params.filters      = [ 64, 128, 256, 256, 512, 512, 512, 512]
+params.kernel_sizes = [  3,   3,   3,   3,   3,   3,   3,   3]
+params.paddings     = [  1,   1,   1,   1,   1,   1,   1,   1]
+params.strides      = [  1,   1,   1,   1,   1,   1,   1,   1]
+params.pool_sizes   = [  2,   2,   0,   2,   0,   2,   0,   2]
+params.dropouts     = [  0,   0,   0,   0,   0,   0,   0,   0, 0.5, 0.5]
+params.fc_units     = [512, 512]
+params.batch_norm 	= true
+disabled = true
+
+# Latent space (before Flatten) is 1×1×512
+[[model]]
+name = "cifar10_SVGG-16-D"
+params.filters      = [ 64, 64, 128, 128, 256, 256, 256, 512, 512, 512, 512, 512, 512]
+params.kernel_sizes = [  3,  3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3,   3]
+params.paddings     = [  1,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1]
+params.strides      = [  1,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1]
+params.pool_sizes   = [  0,  2,   0,   2,   0,   0,   2,   0,   0,   2,   0,   0,   2]
+params.dropouts     = [  0,  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0.5, 0.5]
+params.fc_units     = [512, 512]
+params.batch_norm 	= true
+disabled = false

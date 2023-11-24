@@ -1,0 +1,69 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+default:
+  image: archlinux:latest
+  before_script:
+    - pacman -Syu --noconfirm --needed git which curl wget unzip make gcc arm-none-eabi-gcc arm-none-eabi-newlib vim
+    - pacman -S --noconfirm --needed python-pytorch python-tensorflow python-pip python-numpy
+    - pacman -S --noconfirm --needed python-scikit-learn python-pycryptodome python-pyserial python-tomlkit python-gitpython
+    - pacman -S --noconfirm --needed python-tabulate python-matplotlib
+    - pacman -S --noconfirm --needed python-pytest python-pytest-dependency python-pytest-xdist python-pytest-env
+    - pacman -S --noconfirm --needed python-torchvision python-jinja python-tqdm python-networkx python-aiohttp
+    - pacman -S --noconfirm --needed python-async-timeout python-charset-normalizer python-frozenlist python-multidict 
+    - pacman -S --noconfirm --needed python-yarl python-aiosignal python-dill python-filelock
+    - pacman -S --noconfirm --needed python-blosc2 python-fsspec python-typing_extensions python-pydantic
+
+stages:          # List of stages for jobs, and their order of execution
+  - test
+  - check
+  - deploy
+  - doc
+
+.test-job:       # This job runs in the build stage, which runs first.
+  stage: test
+  script:
+    - pip install --break-system-packages -e .[tests,pytorch,tensorflow,gtsrb] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
+    - pytest -m "not dependency and not deploy" -n auto --dist=loadgroup -vvv -s # xdist incompatible with dependency
+    - pytest -m "dependency and not deploy" -vvv -s
+
+check-job:
+  stage: check
+  script:
+    - pip install --break-system-packages -e .[codegen,lint,typecheck] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
+    - pip install --break-system-packages -U torch # Temporarily upgrade torch with pip until official repos have at least 2.1.0
+    - ruff check src || ((exit_code|=$?))
+    - mypy || ((exit_code|=$?))
+    - $(exit $exit_code)
+
+deploy-job:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - pacman -Syu --noconfirm --needed python-build python-pkginfo python-py python-lazy python-pyproject-hooks python-packaging
+    - pacman -S --noconfirm --needed python-setuptools python-pyparsing python-pluggy python-platformdirs python-requests
+    - pacman -S --noconfirm --needed python-pip git
+    - pip install --break-system-packages devpi-client git+http://naixtech.unice.fr/gitlab/penovac/devpi-client-password-stdin.git
+  script:
+    - devpi use http://naixtech.unice.fr/devpi
+    - devpi login gitlab < ${GITLAB_LDAP_PASSWORD}
+    - devpi use penovac/qualia-nightly
+    - devpi upload
+
+doc-job:
+  stage: doc
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  before_script:
+    - pacman -Syu --noconfirm --needed rclone make git
+    - pacman -S --noconfirm --needed python-sphinx python-sphinx-autodoc-typehints python-sphinx_rtd_theme python-myst-parser
+    - pacman -S --noconfirm --needed python-pip python-pdm python-numpy python-pytorch
+    - pacman -S --noconfirm --needed python-docutils python-torchvision python-tqdm
+    - pacman -S --noconfirm --needed python-blosc2 python-gitpython python-pycryptodome python-pyserial python-scikit-learn
+    - pacman -S --noconfirm --needed python-tabulate python-fsspec python-aiohttp
+  script:
+    - pip install --break-system-packages -e .[docs] --extra-index-url=https://naixtech.unice.fr/devpi/penovac/qualia-nightly/+simple --trusted-host naixtech.unice.fr
+    - make -C docs html
+    - read RCLONE_SFTP_PASS < <(rclone obscure - < ${GITLAB_LDAP_PASSWORD}) && export RCLONE_SFTP_PASS
+    - rclone sync --sftp-host naixtech.unice.fr --sftp-user gitlab docs/_build/html :sftp:/gitlab/public_html/docs/qualia-plugin-snn
