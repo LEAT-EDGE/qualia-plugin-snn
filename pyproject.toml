@@ -28,7 +28,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.urls]
-homepage = "https://naixtech.unice.fr/gitlab/qualia/qualia-plugin-snn"
+homepage = "https://github.com/LEAT-EDGE/qualia-plugin-snn"
+documentation = "https://leat-edge.github.io/qualia-plugin-snn"
 
 [project.optional-dependencies]
 codegen = ['qualia-codegen-plugin-snn']
