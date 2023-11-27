@@ -6,7 +6,7 @@ Plugin for Spiking Neural Network support inside Qualia.
 ## Install
 
 ```
-git clone https://naixtech.unice.fr/gitlab/qualia/qualia-plugin-snn
+git clone https://github.com/LEAT-EDGE/qualia-plugin-snn.git
 cd qualia-plugin-snn
 pdm venv create
 pdm use "$(pwd)/.venv/bin/python"
