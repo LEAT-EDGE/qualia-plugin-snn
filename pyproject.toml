@@ -17,11 +17,11 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    'numpy',
+    'numpy < 1.24',
     'qualia-core',
     'torch',
     'pytorch-lightning',
-    'spikingjelly @ git+https://github.com/fangwei123456/spikingjelly.git',
+    'spikingjelly',
     'typing_extensions; python_version < "3.12"',
 
 ]
