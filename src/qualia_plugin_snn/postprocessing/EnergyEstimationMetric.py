@@ -85,6 +85,10 @@ class EnergyEstimationMetricLoggerFields(NamedTuple):
     input_spikerate: float
     #: Average output spike rate per timestep
     output_spikerate: float
+    #: Input count per timestep
+    input_count: int
+    #: Output count per timestep
+    output_count: int
     #: If input tensor only contains binary values, i.e., spikes
     input_is_binary: bool
     #: If output tensor only contains binary values, i.e., spikes
@@ -103,6 +107,8 @@ class EnergyMetrics:
     :param addr: Energy for event address computation
     :param input_spikerate: Average input spike rate per timestep
     :param output_spikerate: Average output spike rate per timestep
+    :param input_count: Input count per timestep
+    :param output_count: Output count per timestep
     :param input_is_binary: If input tensor only contains binary values, i.e., spikes
     :param output_is_binary: If output tensor only contains binary values, i.e., spikes
     """
@@ -125,6 +131,10 @@ class EnergyMetrics:
     input_spikerate: float | None
     #: Average output spike rate per timestep
     output_spikerate: float | None
+    #: Input count per timestep
+    input_count: int
+    #: Output count per timestep
+    output_count: int
     #: If input tensor only contains binary values, i.e., spikes
     input_is_binary: bool
     #: If output tensor only contains binary values, i.e., spikes
@@ -568,6 +578,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    addr=self._e_addr_conv_fnn(node.layer),
                                    input_spikerate=None,
                                    output_spikerate=None,
+                                   input_count=None,
+                                   output_count=None,
                                    input_is_binary=False,
                                    output_is_binary=False)
             elif isinstance(node.layer, TDenseLayer):
@@ -580,6 +592,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    addr=self._e_addr_fc_fnn(node.layer),
                                    input_spikerate=None,
                                    output_spikerate=None,
+                                   input_count=None,
+                                   output_count=None,
                                    input_is_binary=False,
                                    output_is_binary=False)
             else:
@@ -597,6 +611,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                  addr=sum(em.addr for em in ems),
                                  input_spikerate=None,
                                  output_spikerate=None,
+                                 input_count=None,
+                                 output_count=None,
                                  input_is_binary=False,
                                  output_is_binary=False)
         ems.append(em_total)
@@ -998,6 +1014,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                   output_spikerates: dict[str, float],
                                   input_is_binary: dict[str, bool],
                                   output_is_binary: dict[str, bool],
+                                  input_counts: dict[str, int],
+                                  output_counts: dict[str, int],
                                   timesteps: int,
                                   e_rdram: Callable[[int], float],
                                   e_wrram: Callable[[int], float]) -> list[EnergyMetrics]:
@@ -1017,6 +1035,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param output_spikerate: Dict of layer names and average spike per output per timestep for the layer
         :param input_is_binary: Dict of layer names and whether its input is binary (spike) or not
         :param output_is_binary: Dict of layer names and whether its output is binary (spike) or not
+        :param input_counts: Dict of layer names and number of inputs for the layer
+        :param output_counts: Dict of layer names and number of outputs for the layer
         :param timesteps: Number of timesteps
         :param e_rdram: Function to compute memory read energy for a given memory size
         :param e_wrram: Function to computer memory write energy for a given memory size
@@ -1048,6 +1068,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    addr=self._e_addr_conv_snn(node.layer, input_spikerate),
                                    input_spikerate=input_spikerates[node.layer.name],
                                    output_spikerate=output_spikerates[node.layer.name],
+                                   input_count=input_counts[node.layer.name],
+                                   output_count=output_counts[node.layer.name],
                                    input_is_binary=input_is_binary[node.layer.name],
                                    output_is_binary=output_is_binary[node.layer.name],
                                    )
@@ -1063,6 +1085,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    addr=self._e_addr_fc_snn(node.layer, input_spikerate),
                                    input_spikerate=input_spikerates[node.layer.name],
                                    output_spikerate=output_spikerates[node.layer.name],
+                                   input_count=input_counts[node.layer.name],
+                                   output_count=output_counts[node.layer.name],
                                    input_is_binary=input_is_binary[node.layer.name],
                                    output_is_binary=output_is_binary[node.layer.name],
                                    )
@@ -1077,6 +1101,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                  addr=sum(em.addr for em in ems),
                                  input_spikerate=input_spikerates['__TOTAL__'],
                                  output_spikerate=output_spikerates['__TOTAL__'],
+                                 input_count=input_counts['__TOTAL__'],
+                                 output_count=output_counts['__TOTAL__'],
                                  input_is_binary=input_is_binary[modelgraph.nodes[1].layer.name], # First layer after 'input'
                                  output_is_binary=output_is_binary[modelgraph.nodes[-1].layer.name],
                                  )
@@ -1139,7 +1165,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                            total_exclude_nonbinary: bool = True) -> tuple[dict[str, float],  # noqa: FBT002, FBT001
                                                                           dict[str, float],
                                                                           dict[str, bool],
-                                                                          dict[str, bool]]:
+                                                                          dict[str, bool],
+                                                                          dict[str, int],
+                                                                          dict[str, int]]:
         """Compute spike rate averaged over each neuron and timestep.
 
         A forward hook is added to each layer in order to record its input and output during inference performed over the given
@@ -1170,6 +1198,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             spike_count: Number
             size: int
             binary: bool
+            sample_count: int
 
         if_inputs_spike_count_and_size: dict[str, SpikeCounter]  = {}
         if_outputs_spike_count_and_size: dict[str, SpikeCounter] = {}
@@ -1185,24 +1214,29 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             input_0 = (x[0] if isinstance(x, tuple) else x)
             inputnp = input_0.count_nonzero().item()
             outputnp = output.count_nonzero().item()
+            nb_sample = input_0.shape[0]
 
             if layername not in if_inputs_spike_count_and_size:
                 if_inputs_spike_count_and_size[layername] = SpikeCounter(spike_count=inputnp,
                                                                          size=input_0.numel(),
-                                                                         binary=is_binary(input_0))
+                                                                         binary=is_binary(input_0),
+                                                                         sample_count=nb_sample)
             else:
                 if_inputs_spike_count_and_size[layername].spike_count += inputnp
                 if_inputs_spike_count_and_size[layername].size += input_0.numel()
                 if_inputs_spike_count_and_size[layername].binary &= is_binary(input_0)
+                if_inputs_spike_count_and_size[layername].sample_count += nb_sample
 
             if layername not in if_outputs_spike_count_and_size:
                 if_outputs_spike_count_and_size[layername] = SpikeCounter(spike_count=outputnp,
                                                                           size=output.numel(),
-                                                                          binary=is_binary(output))
+                                                                          binary=is_binary(output),
+                                                                         sample_count=nb_sample)
             else:
                 if_outputs_spike_count_and_size[layername].spike_count += outputnp
                 if_outputs_spike_count_and_size[layername].size += output.numel()
                 if_outputs_spike_count_and_size[layername].binary &= is_binary(output)
+                if_outputs_spike_count_and_size[layername].sample_count += nb_sample
 
         handles = [layer.register_forward_hook(functools.partial(hook,
                                                                  namespace.create_name(_snake_case(layername), layer)))
@@ -1218,9 +1252,14 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         for handle in handles:
             handle.remove()
+            
 
         input_spikerates = {n: sc.spike_count / sc.size for n, sc in if_inputs_spike_count_and_size.items()}
         output_spikerates = {n: sc.spike_count / sc.size for n, sc in if_outputs_spike_count_and_size.items()}
+
+        # Dict for the input counts of each layers divided  by the batch size
+        input_counts = {n: model.timesteps * sc.spike_count / sc.sample_count for n, sc in if_inputs_spike_count_and_size.items()}
+        output_counts = {n: model.timesteps * sc.spike_count / sc.sample_count for n, sc in if_outputs_spike_count_and_size.items()}
 
         # Filter out non-binary inputs/outputs if total_exclude_binary is True
         if total_exclude_nonbinary:
@@ -1231,16 +1270,22 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                                         if not total_exclude_nonbinary or sc.binary}
         filetered_if_outputs_spike_count_and_size = {n: sc for n, sc in if_outputs_spike_count_and_size.items()
                                                         if not total_exclude_nonbinary or sc.binary}
+        
+
         # Special value account for the total spike rate across the whole network
         input_spikerates['__TOTAL__'] = (sum(sc.spike_count for sc in filetered_if_inputs_spike_count_and_size.values())
                                          / sum(sc.size for sc in filetered_if_inputs_spike_count_and_size.values()))
         output_spikerates['__TOTAL__'] = (sum(sc.spike_count for sc in filetered_if_outputs_spike_count_and_size.values())
                                          / sum(sc.size for sc in filetered_if_outputs_spike_count_and_size.values()))
 
+        # Special value account for the total count across the whole network
+        input_counts['__TOTAL__'] = sum(model.timesteps * sc.spike_count / sc.sample_count for sc in filetered_if_inputs_spike_count_and_size.values())
+        output_counts['__TOTAL__'] = sum(model.timesteps * sc.spike_count / sc.sample_count for sc in filetered_if_inputs_spike_count_and_size.values())
+
         input_is_binary = {n: sc.binary for n, sc in if_inputs_spike_count_and_size.items()}
         output_is_binary = {n: sc.binary for n, sc in if_outputs_spike_count_and_size.items()}
 
-        return input_spikerates, output_spikerates, input_is_binary, output_is_binary
+        return input_spikerates, output_spikerates, input_is_binary, output_is_binary, input_counts, output_counts
 
     @override
     def __call__(self,  # noqa: C901
@@ -1335,7 +1380,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             (input_spikerates,
              output_spikerates,
              input_is_binary,
-             output_is_binary) = self._compute_spikerate(trainresult,
+             output_is_binary,
+             input_counts,
+             output_counts) = self._compute_spikerate(trainresult,
                                                          trainresult.framework,
                                                          model,
                                                          trainresult.testset,
@@ -1347,12 +1394,16 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                     output_spikerates[node.innodes[0].layer.name] = output_spikerates[node.layer.name]
                     # Also copy binary output check
                     output_is_binary[node.innodes[0].layer.name] = output_is_binary[node.layer.name]
+                    # And output count
+                    output_counts[node.innodes[0].layer.name] = output_counts[node.layer.name]
 
             ems = self._compute_model_energy_snn(modelgraph,
                                                  input_spikerates,
                                                  output_spikerates,
                                                  input_is_binary,
                                                  output_is_binary,
+                                                 input_counts,
+                                                 output_counts,
                                                  model.timesteps,
                                                  e_rdram,
                                                  e_wrram)
