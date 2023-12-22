@@ -103,6 +103,7 @@ class IFSRL(nn.Module):
         :param alpha: Sigmoig surrogate scale factor
         :param device: Device to run the computation on
         """
+        self.call_super_init = True # Support multiple inheritance from nn.Module
         super().__init__()
         self.v_threshold = v_threshold
         self.alpha = alpha
@@ -182,6 +183,7 @@ class ATIF(BaseNode):  # type: ignore[misc]
         :param alpha: Sigmoig surrogate scale factor
         :param device: Device to run the computation on
         """
+        self.call_super_init = True # Support multiple inheritance from nn.Module
         super().__init__(v_threshold=v_threshold,
                          v_reset=None,
                          surrogate_function=SpikeFunctionSigmoid.apply,

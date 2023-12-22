@@ -6,7 +6,7 @@ import sys
 from typing import Literal
 
 import torch
-from qualia_core.learningmodel.pytorch.layers.QuantizedLayer import QuantizedLayer
+from qualia_core.learningmodel.pytorch.layers.QuantizedLayer import QuantizedLayer, QuantizerActProtocol, QuantizerInputProtocol
 from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig, Quantizer, update_params
 from spikingjelly.activation_based.neuron import IFNode, LIFNode  # type: ignore[import-untyped]
 
@@ -17,7 +17,10 @@ if sys.version_info >= (3, 12):
 else:
     from typing_extensions import override
 
+
 class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
+                       QuantizerInputProtocol,
+                       QuantizerActProtocol,
                        QuantizedLayer):
     """Quantized variant of SpikingJelly's :class:`spikingjelly.activation_based.neuron.LIFNode`.
 
@@ -53,6 +56,7 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
         :param backend: backend fot this neurons layer, only 'torch' is supported
         :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
         """
+        self.call_super_init = True # Support multiple inheritance from nn.Module
         super().__init__(tau=tau,
                          decay_input=decay_input,
                          v_threshold=v_threshold,
@@ -189,28 +193,6 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
 
     @property
     @override
-    def input_q(self) -> int | None:
-        """Number of bits used to encode the fractional part of the input in case of fixed-point quantization.
-
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
-
-        :return: Fractional part bits for the input or ``None`` if not applicable.
-        """
-        return self.quantizer_input.fractional_bits
-
-    @property
-    @override
-    def activation_q(self) -> int | None:
-        """Number of bits used to encode the fractional part of the output in case of fixed-point quantization.
-
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
-
-        :return: Fractional part bits for the output or ``None`` if not applicable.
-        """
-        return self.quantizer_act.fractional_bits
-
-    @property
-    @override
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
@@ -218,9 +200,11 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
-        return self.quantizer_v.fractional_bits
+        return super().weights_q
 
 class QuantizedIFNode(IFNode,  # type: ignore[misc]
+                      QuantizerInputProtocol,
+                      QuantizerActProtocol,
                       QuantizedLayer):
     """Quantized variant of SpikingJelly's :class:`spikingjelly.activation_based.neuron.IFNode`.
 
@@ -251,6 +235,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
         :param backend: backend fot this neurons layer, only 'torch' is supported
         :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
         """
+        self.call_super_init = True # Support multiple inheritance from nn.Module
         super().__init__(v_threshold=v_threshold,
                          v_reset=v_reset,
                          detach_reset=detach_reset,
@@ -353,28 +338,6 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
 
     @property
     @override
-    def input_q(self) -> int | None:
-        """Number of bits used to encode the fractional part of the input in case of fixed-point quantization.
-
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
-
-        :return: Fractional part bits for the input or ``None`` if not applicable.
-        """
-        return self.quantizer_input.fractional_bits
-
-    @property
-    @override
-    def activation_q(self) -> int | None:
-        """Number of bits used to encode the fractional part of the output in case of fixed-point quantization.
-
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
-
-        :return: Fractional part bits for the output or ``None`` if not applicable.
-        """
-        return self.quantizer_act.fractional_bits
-
-    @property
-    @override
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
@@ -382,9 +345,12 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
-        return self.quantizer_v.fractional_bits
+        return super().weights_q
 
-class QuantizedATIF(ATIF, QuantizedLayer):
+class QuantizedATIF(ATIF,
+                    QuantizerInputProtocol,
+                    QuantizerActProtocol,
+                    QuantizedLayer):
     """Quantized Integrate and Fire soft-reset with learnable Vth and activation scaling, based on spikingjelly."""
 
     def __init__(self,  # noqa: PLR0913
@@ -464,28 +430,6 @@ class QuantizedATIF(ATIF, QuantizedLayer):
 
     @property
     @override
-    def input_q(self) -> int | None:
-        """Number of bits used to encode the fractional part of the input in case of fixed-point quantization.
-
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
-
-        :return: Fractional part bits for the input or ``None`` if not applicable.
-        """
-        return self.quantizer_input.fractional_bits
-
-    @property
-    @override
-    def activation_q(self) -> int | None:
-        """Number of bits used to encode the fractional part of the output in case of fixed-point quantization.
-
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
-
-        :return: Fractional part bits for the output or ``None`` if not applicable.
-        """
-        return self.quantizer_act.fractional_bits
-
-    @property
-    @override
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
@@ -493,4 +437,4 @@ class QuantizedATIF(ATIF, QuantizedLayer):
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
-        return self.quantizer_v.fractional_bits
+        return super().weights_q
