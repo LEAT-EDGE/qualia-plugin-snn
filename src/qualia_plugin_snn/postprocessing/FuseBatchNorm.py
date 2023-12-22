@@ -58,7 +58,7 @@ class FuseBatchNorm(FuseBatchNormQualiaCore):
     @override
     def fuse(self,
              model: nn.Module,
-             inplace: bool = False) -> GraphModule:  # noqa: FBT001, FBT002 PyTorch signature
+             inplace: bool = False) -> GraphModule:
         """Fuse BatchNorm to Conv and copy source model ``timesteps`` and `is_snn` attributes to target model.
 
         :param mode: PyTorch model with Conv-BatchNorm layers to fuse
