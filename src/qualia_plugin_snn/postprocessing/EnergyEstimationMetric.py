@@ -1217,7 +1217,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         output_spikerates = {n: sc.spike_count / sc.size for n, sc in if_outputs_spike_count_and_size.items()}
 
         # Filter out non-binary inputs/outputs if total_exclude_binary is True
-        logger.warning('Non-binary inputs/outputs are excluded from the total spike rate computation.')
+        if total_exclude_nonbinary:
+            logger.warning('Non-binary inputs/outputs are excluded from the total spike rate computation.')
         filetered_if_inputs_spike_count_and_size = {n: sc for n, sc in if_inputs_spike_count_and_size.items()
                                                         if not total_exclude_nonbinary or sc.binary}
         filetered_if_outputs_spike_count_and_size = {n: sc for n, sc in if_outputs_spike_count_and_size.items()
