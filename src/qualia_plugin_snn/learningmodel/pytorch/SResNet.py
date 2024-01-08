@@ -13,7 +13,7 @@ from qualia_core.typing import TYPE_CHECKING
 from torch import nn
 
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers1d as sjlayers1d
-from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers1d as sjlayers2d
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers2d as sjlayers2d
 
 from .SNN import SNN
 
