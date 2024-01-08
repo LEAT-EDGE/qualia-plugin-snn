@@ -12,7 +12,9 @@ from dataclasses import dataclass
 from typing import Any, Callable, NamedTuple, cast
 
 import torch
+from qualia_core.learningmodel.pytorch.layers import Add
 from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
+from qualia_core.learningmodel.pytorch.layers.QuantizedAdd import QuantizedAdd
 from qualia_core.learningmodel.pytorch.Quantizer import Quantizer
 from qualia_core.postprocessing.PostProcessing import PostProcessing
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
@@ -1219,6 +1221,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         # Filter out non-binary inputs/outputs if total_exclude_binary is True
         if total_exclude_nonbinary:
             logger.warning('Non-binary inputs/outputs are excluded from the total spike rate computation.')
+        else:
+            logger.warning('Non-binary inputs/outputs are included in the total spike rate computation.')
         filetered_if_inputs_spike_count_and_size = {n: sc for n, sc in if_inputs_spike_count_and_size.items()
                                                         if not total_exclude_nonbinary or sc.binary}
         filetered_if_outputs_spike_count_and_size = {n: sc for n, sc in if_outputs_spike_count_and_size.items()
@@ -1252,6 +1256,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         """
         import spikingjelly.activation_based.layer as sjl  # type: ignore[import-untyped]
         import spikingjelly.activation_based.neuron as sjn  # type: ignore[import-untyped]
+        from qualia_codegen_core.graph.layers import TAddLayer
         from qualia_codegen_plugin_snn.graph import TorchModelGraph
         from qualia_codegen_plugin_snn.graph.layers import TIfLayer
         from torch import nn
@@ -1277,6 +1282,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     sjl.Linear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
                                     sjl.MaxPool1d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool1d],
                                     sjl.MaxPool2d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool2d],
+                                    Add:  lambda *_: (TAddLayer, []),
 
                                     QuantizedIdentity:TorchModelGraph.MODULE_MAPPING[nn.Identity],
                                     qsjl.QuantizedLinear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
@@ -1288,6 +1294,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     qsjl2d.QuantizedMaxPool2d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool2d],
                                     qsjn.QuantizedIFNode: TorchModelGraph.MODULE_MAPPING[sjn.IFNode],
                                     qsjn.QuantizedLIFNode: TorchModelGraph.MODULE_MAPPING[sjn.LIFNode],
+                                    QuantizedAdd:  lambda *_: (TAddLayer, []),
                                     }
         step_mode = getattr(model, 'step_mode', 's')
         if step_mode != 's':
