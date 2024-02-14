@@ -200,7 +200,12 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
-        return super().weights_q
+        return self.quantizer_v.fractional_bits
+
+    @property
+    @override
+    def weights_round_mode(self) -> str | None:
+        return self.quantizer_v.roundtype
 
 class QuantizedIFNode(IFNode,  # type: ignore[misc]
                       QuantizerInputProtocol,
@@ -345,7 +350,12 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
-        return super().weights_q
+        return self.quantizer_v.fractional_bits
+
+    @property
+    @override
+    def weights_round_mode(self) -> str | None:
+        return self.quantizer_v.roundtype
 
 class QuantizedATIF(ATIF,
                     QuantizerInputProtocol,
@@ -437,4 +447,9 @@ class QuantizedATIF(ATIF,
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
-        return super().weights_q
+        return self.quantizer_v.fractional_bits
+
+    @property
+    @override
+    def weights_round_mode(self) -> str | None:
+        return self.quantizer_v.roundtype
