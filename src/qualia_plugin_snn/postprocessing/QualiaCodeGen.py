@@ -66,6 +66,9 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         from torch import nn
 
         custom_layers: dict[type[nn.Module], Callable[[nn.Module, TBaseLayer], tuple[type[TBaseLayer], list[Any]]]]= {
+                sjl.BatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
+                sjl.BatchNorm2d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm2d],
+                sjl.Conv2d: TorchModelGraph.MODULE_MAPPING[nn.Conv2d],
                 sjl.Conv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
                 sjl.Conv2d: TorchModelGraph.MODULE_MAPPING[nn.Conv2d],
                 sjl.Flatten: TorchModelGraph.MODULE_MAPPING[nn.Flatten],
