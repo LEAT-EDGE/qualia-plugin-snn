@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from typing import Any, Callable
 
 import qualia_core.postprocessing
@@ -13,6 +12,7 @@ import qualia_plugin_snn.deployment.qualia_codegen
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
+    from pathlib import Path  # noqa: TCH003
     from types import ModuleType  # noqa: TCH003
 
     from qualia_codegen_core.graph import ModelGraph  # noqa: TCH002

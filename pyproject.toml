@@ -63,9 +63,9 @@ source = "scm"
 
 [tool.ruff]
 extend-exclude = ["third_party"]
-select = ["ALL"]
+lint.select = ["ALL"]
 #select = ["E", "F", "B"]
-ignore = [
+lint.ignore = [
   "ANN101", # Ignore missing type annotation for self in methods
   "ANN102", # Ignore missing type annotation for self in class methods
   "N999", # Our module have the same name as the contained class in PascalCase
@@ -75,7 +75,7 @@ ignore = [
 line-length = 131
 target-version = "py39"
 
-[tool.ruff.flake8-quotes]
+[tool.ruff.lint.flake8-quotes]
 inline-quotes = "single"
 
 [tool.mypy]
