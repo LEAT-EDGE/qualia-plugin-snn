@@ -136,9 +136,9 @@ class EnergyMetrics:
     #: Average output spike rate per timestep
     output_spikerate: float | None
     #: Input count per timestep
-    input_count: int
+    input_count: int | None
     #: Output count per timestep
-    output_count: int
+    output_count: int | None
     #: If input tensor only contains binary values, i.e., spikes
     input_is_binary: bool
     #: If output tensor only contains binary values, i.e., spikes
@@ -682,28 +682,30 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         """
         return self._rdweights_conv_snn(layer, input_spikerate) * e_rdram(layer.kernel.size)
 
-    def _rdbias_conv_snn(self, layer: TConvLayer) -> int:
+    def _rdbias_conv_snn(self, layer: TConvLayer, timesteps: int) -> int:
         """Count number of read operations for the biases of a convolutional layer in a spiking neural network.
 
         Eq. 7s: Cout × Wout × Hout.
 
         :meta public:
         :param layer: A convolutional layer
+        :param timesteps: Number of timesteps
         :return: Number of read operations for the biases of a convolutional layer in a spiking neural network
         """  # noqa: RUF002
-        return math.prod(layer.output_shape[0][1:])
+        return math.prod(layer.output_shape[0][1:]) * timesteps
 
-    def _e_rdbias_conv_snn(self, layer: TConvLayer, e_rdram: Callable[[int], float]) -> float:
+    def _e_rdbias_conv_snn(self, layer: TConvLayer, timesteps: int, e_rdram: Callable[[int], float]) -> float:
         """Compute energy for read operations for the biases of a convolutional layer in a spiking neural network.
 
         :meta public:
         :param layer: A convolutional layer
+        :param timesteps: Number of timesteps
         :param e_rdram: Function to compute memory read access energy for a given memory size
         :return: Energy for read operations for the biases of a convolutional layer in a spiking neural network or 0 if the layer
                  does not use biases
         """
         if layer.use_bias:
-            return self._rdbias_conv_snn(layer) * e_rdram(layer.bias.size)
+            return self._rdbias_conv_snn(layer, timesteps) * e_rdram(layer.bias.size)
         return 0
 
 
@@ -731,28 +733,30 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         """
         return self._rdweights_fc_snn(layer, input_spikerate) * e_rdram(layer.kernel.size)
 
-    def _rdbias_fc_snn(self, layer: TDenseLayer) -> int:
+    def _rdbias_fc_snn(self, layer: TDenseLayer, timesteps: int) -> int:
         """Count number of read operations for the biases of a fully-connected layer in a spiking neural network.
 
         Eq. 6.2s: Nout.
 
         :meta public:
         :param layer: A fully-connected layer
+        :param timesteps: Number of timesteps
         :return: Number of read operations for the biases of a fully-connected layer in a spiking neural network
         """
-        return layer.output_shape[0][-1]
+        return layer.output_shape[0][-1] * timesteps
 
-    def _e_rdbias_fc_snn(self, layer: TDenseLayer, e_rdram: Callable[[int], float]) -> float:
+    def _e_rdbias_fc_snn(self, layer: TDenseLayer, timesteps: int, e_rdram: Callable[[int], float]) -> float:
         """Compute energy for read operations for the biases of a fully-connected layer in a spiking neural network.
 
         :meta public:
         :param layer: A fully-connected layer
+        :param timesteps: Number of timesteps
         :param e_rdram: Function to compute memory read access energy for a given memory size
         :return: Energy for read operations for the biases of a fully-connected layer in a spiking neural network or 0 if the layer
             does not use biases
         """
         if layer.use_bias:
-            return self._rdbias_fc_snn(layer) * e_rdram(layer.bias.size)
+            return self._rdbias_fc_snn(layer, timesteps) * e_rdram(layer.bias.size)
         return 0
 
 
@@ -781,53 +785,128 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         return self._wrout_snn(layer, output_spikerate) * e_wrram(self._fifo_size)
 
 
-    def _wrpot_conv_snn(self, layer: TConvLayer, input_spikerate: float) -> float:
+    def _wrpot_conv_snn(self, layer: TConvLayer, input_spikerate: float, timesteps: int) -> float:
         """Count average number of write operations for the potentials of a convolutional layer in a spiking neural network.
 
         Eq 14: θl-1 × Cout × Wkernel × Hkernel + Cout × Hout × Wout.
 
         :meta public:
         :param layer: A convolutional layer
+        :param timesteps: Number of timesteps
         :param input_spikerate: Average spike per input per inference
         :return: Average number of write operations for the potentials of a convolutional layer in a spiking neural network
         """  # noqa: RUF002
         theta_in = input_spikerate * math.prod(layer.input_shape[0][1:])
-        return theta_in * layer.output_shape[0][-1] * math.prod(layer.kernel_size) + math.prod(layer.output_shape[0][1:])
+        return (theta_in * layer.output_shape[0][-1] * math.prod(layer.kernel_size)
+                + math.prod(layer.output_shape[0][1:]) * timesteps)
 
-    def _e_wrpot_conv_snn(self, layer: TConvLayer, input_spikerate: float, e_wrram: Callable[[int], float]) -> float:
+    def _e_wrpot_conv_snn(self,
+                          layer: TConvLayer,
+                          input_spikerate: float,
+                          timesteps: int,
+                          e_wrram: Callable[[int], float]) -> float:
         """Compute average energy for write operations for the potentials of a convolutional layer in a spiking neural network.
 
         :meta public:
         :param layer: A convolutional layer
+        :param timesteps: Number of timesteps
         :param input_spikerate: Average spike per input per inference
         :param e_rdram: Function to compute memory write access energy for a given memory size
         :return: Average energy for write operations for the potentials of a convolutional layer in a spiking neural network
         """
-        return self._wrpot_conv_snn(layer, input_spikerate) * e_wrram(math.prod(layer.output_shape[0][1:]))
+        return self._wrpot_conv_snn(layer, input_spikerate, timesteps) * e_wrram(math.prod(layer.output_shape[0][1:]))
 
-    def _wrpot_fc_snn(self, layer: TDenseLayer, input_spikerate: float) -> float:
+    def _wrpot_fc_snn(self, layer: TDenseLayer, input_spikerate: float, timesteps: int) -> float:
         """Count average number of write operations for the potentials of a fully-connected layer in a spiking neural network.
 
         Eq 15: θl-1 × Nout + Nout.
 
         :meta public:
         :param layer: A fully-connected layer
+        :param timesteps: Number of timesteps
         :param input_spikerate: Average spike per input per inference
         :return: Average number of write operations for the potentials of a fully-connected layer in a spiking neural network
         """  # noqa: RUF002
         theta_in = input_spikerate * math.prod(layer.input_shape[0][1:])
-        return theta_in * layer.output_shape[0][-1] + layer.output_shape[0][-1]
+        return theta_in * layer.output_shape[0][-1] + layer.output_shape[0][-1] * timesteps
 
-    def _e_wrpot_fc_snn(self, layer: TDenseLayer, input_spikerate: float, e_wrram: Callable[[int], float]) -> float:
+    def _e_wrpot_fc_snn(self,
+                        layer: TDenseLayer,
+                        input_spikerate: float,
+                        timesteps: int,
+                        e_wrram: Callable[[int], float]) -> float:
         """Compute average energy for write operations for the potentials of a fully-connected layer in a spiking neural network.
 
         :meta public:
         :param layer: A fully-connected layer
+        :param timesteps: Number of timesteps
         :param input_spikerate: Average spike per input per inference
         :param e_rdram: Function to compute memory write access energy for a given memory size
         :return: Average energy for write operations for the potentials of a fully-connected layer in a spiking neural network
         """
-        return self._wrpot_fc_snn(layer, input_spikerate) * e_wrram(math.prod(layer.output_shape[0][1:]))
+        return self._wrpot_fc_snn(layer, input_spikerate, timesteps) * e_wrram(math.prod(layer.output_shape[0][1:]))
+
+
+    def _rdpot_conv_snn(self, layer: TConvLayer, input_spikerate: float, timesteps: int) -> float:
+        """Count average number of read operations for the potentials of a convolutional layer in a spiking neural network.
+
+        Eq 9: θl-1 × Cout × Wkernel × Hkernel + Cout × Hout × Wout.
+
+        :meta public:
+        :param layer: A convolutional layer
+        :param timesteps: Number of timesteps
+        :param input_spikerate: Average spike per input per inference
+        :return: Average number of read operations for the potentials of a convolutional layer in a spiking neural network
+        """  # noqa: RUF002
+        theta_in = input_spikerate * math.prod(layer.input_shape[0][1:])
+        return (theta_in * layer.output_shape[0][-1] * math.prod(layer.kernel_size)
+                + math.prod(layer.output_shape[0][1:]) * timesteps)
+
+    def _e_rdpot_conv_snn(self,
+                          layer: TConvLayer,
+                          input_spikerate: float,
+                          timesteps: int,
+                          e_wrram: Callable[[int], float]) -> float:
+        """Compute average energy for write operations for the potentials of a convolutional layer in a spiking neural network.
+
+        :meta public:
+        :param layer: A convolutional layer
+        :param timesteps: Number of timesteps
+        :param input_spikerate: Average spike per input per inference
+        :param e_rdram: Function to compute memory write access energy for a given memory size
+        :return: Average energy for read operations for the potentials of a convolutional layer in a spiking neural network
+        """
+        return self._rdpot_conv_snn(layer, input_spikerate, timesteps) * e_wrram(math.prod(layer.output_shape[0][1:]))
+
+    def _rdpot_fc_snn(self, layer: TDenseLayer, input_spikerate: float, timesteps: int) -> float:
+        """Count average number of read operations for the potentials of a fully-connected layer in a spiking neural network.
+
+        Eq 10: θl-1 × Nout + Nout.
+
+        :meta public:
+        :param layer: A fully-connected layer
+        :param timesteps: Number of timesteps
+        :param input_spikerate: Average spike per input per inference
+        :return: Average number of read operations for the potentials of a fully-connected layer in a spiking neural network
+        """  # noqa: RUF002
+        theta_in = input_spikerate * math.prod(layer.input_shape[0][1:])
+        return theta_in * layer.output_shape[0][-1] + layer.output_shape[0][-1] * timesteps
+
+    def _e_rdpot_fc_snn(self,
+                        layer: TDenseLayer,
+                        input_spikerate: float,
+                        timesteps: int,
+                        e_wrram: Callable[[int], float]) -> float:
+        """Compute average energy for read operations for the potentials of a fully-connected layer in a spiking neural network.
+
+        :meta public:
+        :param layer: A fully-connected layer
+        :param timesteps: Number of timesteps
+        :param input_spikerate: Average spike per input per inference
+        :param e_rdram: Function to compute memory write access energy for a given memory size
+        :return: Average energy for read operations for the potentials of a fully-connected layer in a spiking neural network
+        """
+        return self._rdpot_fc_snn(layer, input_spikerate, timesteps) * e_wrram(math.prod(layer.output_shape[0][1:]))
 
 
     def _mac_ops_conv_snn(self, layer: TConvLayer, timesteps: int, leak: bool) -> int:  # noqa: FBT001
@@ -1068,7 +1147,10 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
             # Account for timesteps here since the spikerate has been averaged over timesteps
             input_spikerate = input_spikerates[node.layer.name] * timesteps
-            output_spikerate = output_spikerates[node.layer.name] * timesteps
+            # If no If activation, no output spikes are generated so no reset operation or writing to the output queue
+            output_spikerate = (output_spikerates[node.layer.name] * timesteps
+                                if len(node.outnodes) > 0 and isinstance(node.outnodes[0].layer, TIfLayer)
+                                else 0)
 
             leak = len(node.outnodes) > 0 and isinstance(node.outnodes[0].layer, TLifLayer)
 
@@ -1091,39 +1173,69 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                 ems.append(em)
             elif is_module_sj[node.layer.name]:
                 if isinstance(node.layer, TConvLayer):
+                    if not input_is_binary[node.layer.name]: # Non-binary dense input:
+                        e_mem_io = (self._e_rdin_conv_fnn(node.layer, e_rdram) # Dense reading of inputs
+                                    + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
+                        e_ops = (self._e_ops_conv_fnn(node.layer) # MAC operations
+                                 + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
+                                 + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
+                        e_addr = self._e_addr_conv_fnn(node.layer) # Dense addressing
+                        is_sj = 'Hybrid'
+                    else:
+                        e_mem_io = (self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
+                                    + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
+                        e_ops = self._e_ops_conv_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak)
+                        e_addr = self._e_addr_conv_snn(node.layer, input_spikerate)
+                        is_sj = True
+
                     em = EnergyMetrics(name=node.layer.name,
-                                       mem_pot=self._e_wrpot_conv_snn(node.layer, input_spikerate, e_wrram),
+                                       mem_pot=self._e_wrpot_conv_snn(node.layer, input_spikerate, timesteps, e_wrram)
+                                       + self._e_rdpot_conv_snn(node.layer, input_spikerate, timesteps, e_wrram),
                                        mem_weights=self._e_rdweights_conv_snn(node.layer, input_spikerate, e_rdram),
-                                       mem_bias=self._e_rdbias_conv_snn(node.layer, e_rdram),
-                                       mem_io=self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
-                                       + self._e_wrout_snn(node.layer, output_spikerate, e_wrram),
-                                       ops=self._e_ops_conv_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak),
-                                       addr=self._e_addr_conv_snn(node.layer, input_spikerate),
+                                       mem_bias=self._e_rdbias_conv_snn(node.layer, timesteps, e_rdram),
+                                       mem_io=e_mem_io,
+                                       ops=e_ops,
+                                       addr=e_addr,
                                        input_spikerate=input_spikerates[node.layer.name],
                                        output_spikerate=output_spikerates[node.layer.name],
                                        input_count=input_counts[node.layer.name],
                                        output_count=output_counts[node.layer.name],
                                        input_is_binary=input_is_binary[node.layer.name],
                                        output_is_binary=output_is_binary[node.layer.name],
-                                       is_sj=is_module_sj[node.layer.name],
+                                       is_sj=is_sj,
                                        )
                     ems.append(em)
                 elif isinstance(node.layer, TDenseLayer):
+                    if not input_is_binary[node.layer.name]: # Non-binary dense input:
+                        e_mem_io = (self._e_rdin_fc_fnn(node.layer, e_rdram) # Dense reading of inputs
+                                    + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
+                        e_ops = (self._e_ops_fc_fnn(node.layer) # MAC operations
+                                 + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
+                                 + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
+                        e_addr = self._e_addr_fc_fnn(node.layer) # Dense addressing
+                        is_sj = 'Hybrid'
+                    else:
+                        e_mem_io = (self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
+                                    + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
+                        e_ops = self._e_ops_fc_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak)
+                        e_addr = self._e_addr_fc_snn(node.layer, input_spikerate)
+                        is_sj = True
+
                     em = EnergyMetrics(name=node.layer.name,
-                                       mem_pot=self._e_wrpot_fc_snn(node.layer, input_spikerate, e_wrram),
+                                       mem_pot=self._e_wrpot_fc_snn(node.layer, input_spikerate, timesteps, e_wrram)
+                                       + self._e_rdpot_fc_snn(node.layer, input_spikerate, timesteps, e_wrram),
                                        mem_weights=self._e_rdweights_fc_snn(node.layer, input_spikerate, e_rdram),
-                                       mem_bias=self._e_rdbias_fc_snn(node.layer, e_rdram),
-                                       mem_io=self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
-                                       + self._e_wrout_snn(node.layer, output_spikerate, e_wrram),
-                                       ops=self._e_ops_fc_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak),
-                                       addr=self._e_addr_fc_snn(node.layer, input_spikerate),
+                                       mem_bias=self._e_rdbias_fc_snn(node.layer, timesteps, e_rdram),
+                                       mem_io=e_mem_io,
+                                       ops=e_ops,
+                                       addr=e_addr,
                                        input_spikerate=input_spikerates[node.layer.name],
                                        output_spikerate=output_spikerates[node.layer.name],
                                        input_count=input_counts[node.layer.name],
                                        output_count=output_counts[node.layer.name],
                                        input_is_binary=input_is_binary[node.layer.name],
                                        output_is_binary=output_is_binary[node.layer.name],
-                                       is_sj=is_module_sj[node.layer.name],
+                                       is_sj=is_sj,
                                        )
                     ems.append(em)
             else:
@@ -1132,7 +1244,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                        mem_pot=0,
                                        mem_weights=self._e_rdweights_conv_fnn(node.layer, e_rdram),
                                        mem_bias=self._e_rdbias_conv_fnn(node.layer, e_rdram),
-                                       mem_io=self._e_rdin_conv_fnn(node.layer, e_rdram) + self._e_wrout_conv_fnn(node.layer, e_wrram),
+                                       mem_io=self._e_rdin_conv_fnn(node.layer, e_rdram)
+                                       + self._e_wrout_conv_fnn(node.layer, e_wrram),
                                        ops=self._e_ops_conv_fnn(node.layer),
                                        addr=self._e_addr_conv_fnn(node.layer),
                                        input_spikerate=input_spikerates[node.layer.name],
@@ -1162,7 +1275,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                        )
                     ems.append(em)
 
-        total_is_sj = (True if all(is_sj for is_sj in is_module_sj.values()) else
+        total_is_sj = (True if all(is_sj == True for is_sj in is_module_sj.values()) else
                        False if all(not is_sj for is_sj in is_module_sj.values()) else
                        'Hybrid')
 
@@ -1304,8 +1417,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                          if isinstance(module, sjb.StepModule) and module.step_mode == 'm'
                          else input_0.shape[0])
 
-            # Also make sure input is binary to consider the layer as an SNN layer
-            is_module_sj[layername] = is_sj(module) and is_binary(input_0)
+            is_module_sj[layername] = is_sj(module)
 
             if layername not in if_inputs_spike_count_and_size:
                 if_inputs_spike_count_and_size[layername] = SpikeCounter(spike_count=inputnp,
@@ -1512,7 +1624,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                     input_spikerates[new_in_name] = input_spikerates[in_name]
                     input_is_binary[new_in_name] = input_is_binary[in_name]
                     input_counts[new_in_name] = input_counts[in_name]
-                    is_module_sj[new_in_name] = is_module_sj[in_name] and input_is_binary[new_in_name]
+                    is_module_sj[new_in_name] = is_module_sj[in_name]
                     node.innodes[0].layer.name = new_in_name
 
             ems = self._compute_model_energy_snn(modelgraph,
