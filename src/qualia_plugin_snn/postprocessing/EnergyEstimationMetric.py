@@ -13,8 +13,12 @@ from typing import Any, Callable, NamedTuple, cast
 
 import torch
 from qualia_core.learningmodel.pytorch.layers import Add
+from qualia_core.learningmodel.pytorch.layers.GlobalSumPool1d import GlobalSumPool1d
+from qualia_core.learningmodel.pytorch.layers.GlobalSumPool2d import GlobalSumPool2d
 from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
 from qualia_core.learningmodel.pytorch.layers.QuantizedAdd import QuantizedAdd
+from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool1d import QuantizedGlobalSumPool1d
+from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool2d import QuantizedGlobalSumPool2d
 from qualia_core.learningmodel.pytorch.Quantizer import Quantizer
 from qualia_core.postprocessing.PostProcessing import PostProcessing
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
@@ -1256,7 +1260,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         """
         import spikingjelly.activation_based.layer as sjl  # type: ignore[import-untyped]
         import spikingjelly.activation_based.neuron as sjn  # type: ignore[import-untyped]
-        from qualia_codegen_core.graph.layers import TAddLayer
+        from qualia_codegen_core.graph.layers import TAddLayer, TSumLayer
         from qualia_codegen_plugin_snn.graph import TorchModelGraph
         from qualia_codegen_plugin_snn.graph.layers import TIfLayer
         from torch import nn
@@ -1283,6 +1287,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     sjl.MaxPool1d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool1d],
                                     sjl.MaxPool2d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool2d],
                                     Add:  lambda *_: (TAddLayer, []),
+                                    GlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
+                                    GlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
 
                                     QuantizedIdentity:TorchModelGraph.MODULE_MAPPING[nn.Identity],
                                     qsjl.QuantizedLinear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
@@ -1295,6 +1301,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     qsjn.QuantizedIFNode: TorchModelGraph.MODULE_MAPPING[sjn.IFNode],
                                     qsjn.QuantizedLIFNode: TorchModelGraph.MODULE_MAPPING[sjn.LIFNode],
                                     QuantizedAdd:  lambda *_: (TAddLayer, []),
+                                    QuantizedGlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
+                                    QuantizedGlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
                                     }
         step_mode = getattr(model, 'step_mode', 's')
         if step_mode != 's':
@@ -1305,6 +1313,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         if modelgraph is None:
             logger.error('Model graph conversion failed')
             return trainresult, model_conf
+
+        logger.info('ModelGraph:\n%s', modelgraph)
 
         def e_rdram(x: int) -> float:
             return self._e_ram(x, self._mem_width)
