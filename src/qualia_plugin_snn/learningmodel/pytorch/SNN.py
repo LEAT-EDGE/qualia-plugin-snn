@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+import spikingjelly.activation_based.base as sjb  # type: ignore[import-untyped]
 import spikingjelly.activation_based.neuron as sj  # type: ignore[import-untyped]
 from qualia_core.learningmodel.pytorch.LearningModelPyTorch import LearningModelPyTorch
 from qualia_core.typing import TYPE_CHECKING
@@ -18,11 +19,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class SNN(LearningModelPyTorch):
+class SNN(LearningModelPyTorch, sjb.StepModule):
     """Base class for spiking neural network models to inherit from."""
 
     timesteps: int #: Number of timesteps
-    step_mode: str #: SpikingJelly ``step_mode``
     is_snn: bool = True #: Always ``True`` in case of spiking neural networks
 
     def __select_neuron(self, neuron: RecursiveConfigDict) -> type[nn.Module]:

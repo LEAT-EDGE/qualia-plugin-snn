@@ -9,16 +9,19 @@ import spikingjelly.activation_based.layer as sjl  # type: ignore[import-untyped
 import spikingjelly.activation_based.neuron as sjn  # type: ignore[import-untyped]
 from qualia_core.postprocessing.FuseBatchNorm import FuseBatchNorm as FuseBatchNormQualiaCore
 from qualia_core.typing import TYPE_CHECKING
+from torch.fx.graph_module import GraphModule
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
     from torch import nn  # noqa: TCH002
-    from torch.fx.graph_module import GraphModule  # noqa: TCH002
 
 if sys.version_info >= (3, 12):
     from typing import override
 else:
     from typing_extensions import override
+
+class GraphModuleStepModule(GraphModule, sjb.StepModule):
+    pass
 
 class FuseBatchNorm(FuseBatchNormQualiaCore):
     """Extend :class:`qualia_core.postprocessing.FuseBatchNorm.FuseBatchNorm` with support for Spiking Neural Networks.
@@ -58,6 +61,7 @@ class FuseBatchNorm(FuseBatchNormQualiaCore):
     @override
     def fuse(self,
              model: nn.Module,
+             graphmodule_cls: type[GraphModule],
              inplace: bool = False) -> GraphModule:
         """Fuse BatchNorm to Conv and copy source model ``timesteps`` and `is_snn` attributes to target model.
 
@@ -65,9 +69,14 @@ class FuseBatchNorm(FuseBatchNormQualiaCore):
         :param inplace: Modify model in place instead of deep-copying
         :return: Resulting model with BatchNorm fused to Conv
         """
-        fused_model = super().fuse(model, inplace=inplace)
+        if isinstance(model, sjb.StepModule):
+            graphmodule_cls = GraphModuleStepModule
+
+        fused_model = super().fuse(model, graphmodule_cls=graphmodule_cls, inplace=inplace)
         if hasattr(model, 'timesteps'):
             fused_model.timesteps = model.timesteps
+        if hasattr(model, 'step_mode'):
+            fused_model.step_mode = model.step_mode
         if hasattr(model, 'is_snn'):
             fused_model.is_snn = model.is_snn
         return fused_model

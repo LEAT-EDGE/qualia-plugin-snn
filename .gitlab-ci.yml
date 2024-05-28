@@ -40,7 +40,7 @@ deploy-job:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   before_script:
-    - pacman -Syu --noconfirm --needed python-build python-pkginfo python-py python-lazy python-pyproject-hooks python-packaging
+    - pacman -Syu --noconfirm --needed python-build python-pkginfo python-py python-pyproject-hooks python-packaging
     - pacman -S --noconfirm --needed python-setuptools python-pyparsing python-pluggy python-platformdirs python-requests
     - pacman -S --noconfirm --needed python-pip git
     - pip install --break-system-packages devpi-client git+http://naixtech.unice.fr/gitlab/penovac/devpi-client-password-stdin.git
