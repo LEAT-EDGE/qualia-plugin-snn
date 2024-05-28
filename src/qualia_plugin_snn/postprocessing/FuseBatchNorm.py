@@ -20,8 +20,15 @@ if sys.version_info >= (3, 12):
 else:
     from typing_extensions import override
 
-class GraphModuleStepModule(GraphModule, sjb.StepModule):
-    pass
+class GraphModuleStepModule(GraphModule, sjb.StepModule):  # type: ignore[misc]
+    """Mixin of :class:`torch.fx.graph_module.GraphModule` and :class:`spikingjelly.activation_based.base.StepModule`.
+
+    Used by :class:`FuseBatchNorm` to return a module that still inherits
+    from class:`spikingjelly.activation_based.base.StepModule`.
+
+    This is required so that SpikingJelly's network-wise operations such as
+    :meth:`spikingjelly.activation_based.functional.set_step_mode` work as expected.
+    """
 
 class FuseBatchNorm(FuseBatchNormQualiaCore):
     """Extend :class:`qualia_core.postprocessing.FuseBatchNorm.FuseBatchNorm` with support for Spiking Neural Networks.

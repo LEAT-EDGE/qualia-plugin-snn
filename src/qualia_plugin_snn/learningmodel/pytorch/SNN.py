@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-class SNN(LearningModelPyTorch, sjb.StepModule):
+class SNN(LearningModelPyTorch, sjb.StepModule):  # type: ignore[misc]
     """Base class for spiking neural network models to inherit from."""
 
     timesteps: int #: Number of timesteps
