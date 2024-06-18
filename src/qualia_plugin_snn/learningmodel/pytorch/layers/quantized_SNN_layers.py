@@ -68,7 +68,8 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
         quant_params_input = update_params(tensor_type='input', quant_params=quant_params)
         # Does not work like weights since it's dynamic so need to keep track of global max, don't use 'input' since it can be
         # skipped so use 'act' type
-        quant_params_v = update_params(tensor_type='act', quant_params=quant_params)
+        # The type is now 'v' giving the potential tensor is how quantization parameters.
+        quant_params_v = update_params(tensor_type='v', quant_params=quant_params)
         quant_params_act = update_params(tensor_type='act', quant_params=quant_params)
         self.quantizer_input = Quantizer(**quant_params_input)
         self.quantizer_v = Quantizer(**quant_params_v)
@@ -250,7 +251,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
         quant_params_input = update_params(tensor_type = 'input', quant_params = quant_params)
         # Does not work like weights since it's dynamic so need to keep track of global max, don't use 'input' since it can be
         # skipped so use 'act' type
-        quant_params_v = update_params(tensor_type='act', quant_params=quant_params)
+        quant_params_v = update_params(tensor_type='v', quant_params=quant_params)
         quant_params_act = update_params(tensor_type='act', quant_params=quant_params)
         self.quantizer_input = Quantizer(**quant_params_input)
         self.quantizer_v = Quantizer(**quant_params_v)
@@ -388,7 +389,7 @@ class QuantizedATIF(ATIF,
         quant_params_input = update_params(tensor_type='input', quant_params=quant_params)
         # Does not work like weights since it's dynamic so need to keep track of global max, don't use 'input' since it can be
         # skipped so use 'act' type
-        quant_params_v = update_params(tensor_type='act', quant_params=quant_params)
+        quant_params_v = update_params(tensor_type='v', quant_params=quant_params)
         quant_params_act = update_params(tensor_type='act', quant_params=quant_params)
         self.quantizer_input = Quantizer(**quant_params_input)
         self.quantizer_v = Quantizer(**quant_params_v)
