@@ -1300,24 +1300,26 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
                 if isinstance(node.layer, TConvLayer):
                     if not input_is_binary[node.layer.name]: # Non-binary dense input:
-                        e_mem_io = (self._e_rdin_conv_fnn(node.layer, e_rdram) # Dense reading of inputs
+                        e_mem_io = (self._e_rdin_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
-                        e_ops = (self._e_ops_conv_fnn(node.layer) # MAC operations
+                        e_ops = (self._e_ops_conv_fnn(node.layer) * input_spikerates[node.layer.name] # MAC operations Bias is not considered here !!... 
                                  + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
                                  + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
-                        e_addr = self._e_addr_conv_fnn(node.layer) # Dense addressing
+                        e_addr = self._e_addr_conv_snn(node.layer, input_spikerates[node.layer.name])
+                        mem_weights = self._e_rdweights_conv_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                         is_sj = 'Hybrid'
                     else:
                         e_mem_io = (self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
                         e_ops = self._e_ops_conv_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak)
                         e_addr = self._e_addr_conv_snn(node.layer, input_spikerate)
+                        mem_weights = self._e_rdweights_conv_snn(node.layer, input_spikerate, e_rdram)
                         is_sj = True
 
                     em = EnergyMetrics(name=node.layer.name,
                                        mem_pot=self._e_wrpot_conv_snn(node.layer, input_spikerate, timesteps, e_wrram)
                                        + self._e_rdpot_conv_snn(node.layer, input_spikerate, timesteps, e_rdram),
-                                       mem_weights=self._e_rdweights_conv_snn(node.layer, input_spikerate, e_rdram),
+                                       mem_weights=mem_weights,
                                        mem_bias=self._e_rdbias_conv_snn(node.layer, timesteps, e_rdram),
                                        mem_io=e_mem_io,
                                        ops=e_ops,
