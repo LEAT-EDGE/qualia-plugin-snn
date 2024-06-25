@@ -218,7 +218,7 @@ class QuantizedBatchNorm1d(quantized_layers1d.QuantizedBatchNorm1d,
 
         elif self.step_mode == 'm':
             if x.dim() != 4:  # noqa: PLR2004
-                logger.error('Expected input with shape [T, N, C, L], but got input with shape %', x.shape)
+                logger.error('Expected input with shape [T, N, C, L], but got input with shape %s', x.shape)
                 raise ValueError
             x = functional.seq_to_ann_forward(x, super().forward)
 
