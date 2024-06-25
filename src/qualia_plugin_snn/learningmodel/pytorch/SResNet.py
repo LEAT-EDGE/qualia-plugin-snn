@@ -8,12 +8,12 @@ from typing import Callable, Protocol, cast
 
 import numpy as np
 import torch
-from qualia_core.learningmodel.pytorch.layers import Add
 from qualia_core.typing import TYPE_CHECKING
 from torch import nn
 
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers1d as sjlayers1d
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers2d as sjlayers2d
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.Add import Add
 
 from .SNN import SNN
 

@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Protocol, cast
+from typing import Protocol
 
 import numpy as np
 import torch
-from qualia_core.learningmodel.pytorch.layers import QuantizedAdd
 from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
 from qualia_core.typing import TYPE_CHECKING
 from torch import nn
 
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers1d as sjlayers1d
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers2d as sjlayers2d
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.QuantizedAdd import QuantizedAdd
 
 from .SNN import SNN
 
