@@ -979,7 +979,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                           layer: TConvLayer,
                           input_spikerate: float,
                           timesteps: int,
-                          e_wrram: Callable[[int], float]) -> float:
+                          e_rdram: Callable[[int], float]) -> float:
         """Compute average energy for write operations for the potentials of a convolutional layer in a spiking neural network.
 
         :meta public:
@@ -989,7 +989,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param e_rdram: Function to compute memory write access energy for a given memory size
         :return: Average energy for read operations for the potentials of a convolutional layer in a spiking neural network
         """
-        return self._rdpot_conv_snn(layer, input_spikerate, timesteps) * e_wrram(math.prod(layer.output_shape[0][1:]))
+        return self._rdpot_conv_snn(layer, input_spikerate, timesteps) * e_rdram(math.prod(layer.output_shape[0][1:]))
 
     def _rdpot_fc_snn(self, layer: TDenseLayer, input_spikerate: float, timesteps: int) -> float:
         """Count average number of read operations for the potentials of a fully-connected layer in a spiking neural network.
@@ -1305,7 +1305,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
                     em = EnergyMetrics(name=node.layer.name,
                                        mem_pot=self._e_wrpot_conv_snn(node.layer, input_spikerate, timesteps, e_wrram)
-                                       + self._e_rdpot_conv_snn(node.layer, input_spikerate, timesteps, e_wrram),
+                                       + self._e_rdpot_conv_snn(node.layer, input_spikerate, timesteps, e_rdram),
                                        mem_weights=self._e_rdweights_conv_snn(node.layer, input_spikerate, e_rdram),
                                        mem_bias=self._e_rdbias_conv_snn(node.layer, timesteps, e_rdram),
                                        mem_io=e_mem_io,
