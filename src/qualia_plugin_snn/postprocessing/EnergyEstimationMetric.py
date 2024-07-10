@@ -1598,6 +1598,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                 if_outputs_spike_count_and_size[layername].binary &= is_binary(output)
                 if_outputs_spike_count_and_size[layername].sample_count += nb_sample
 
+
         handles = [layer.register_forward_hook(functools.partial(hook,
                                                                  namespace.create_name(_snake_case(layername), layer)))
                    for layername, layer in cast(Generator[tuple[str, Module], None, None], model.named_modules())
@@ -1662,9 +1663,11 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         # Special value account for the total spike rate across the whole network
         input_total_spikerate = (sum(sc.spike_count for sc in filetered_if_inputs_spike_count_and_size.values())
-                                         / sum(sc.size for sc in filetered_if_inputs_spike_count_and_size.values()))
+                                         / sum(sc.size for sc in filetered_if_inputs_spike_count_and_size.values())
+                                 if len(filetered_if_inputs_spike_count_and_size) > 0 else 0.0)
         output_total_spikerate = (sum(sc.spike_count for sc in filetered_if_outputs_spike_count_and_size.values())
-                                         / sum(sc.size for sc in filetered_if_outputs_spike_count_and_size.values()))
+                                         / sum(sc.size for sc in filetered_if_outputs_spike_count_and_size.values())
+                                 if len(filetered_if_outputs_spike_count_and_size) > 0 else 0.0)
 
         # Special value account for the total count across the whole network
         input_total_count = sum(timesteps * sc.spike_count / sc.sample_count
