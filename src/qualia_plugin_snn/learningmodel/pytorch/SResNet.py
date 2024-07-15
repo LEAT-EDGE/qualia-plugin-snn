@@ -405,11 +405,11 @@ class SResNet(SNN):
                     padding: int) -> nn.Sequential:
         strides = [stride] + [1]*(num_blocks-1)
         layers: list[BasicBlock] = []
-        for stride in strides:
+        for s in strides:
             block: BasicBlock = basicblockbuilder(in_planes=self.in_planes,
                                       planes=planes,
                                       kernel_size=kernel_size,
-                                      stride=stride,
+                                      stride=s,
                                       padding=padding)
             layers.append(block)
             self.in_planes = planes * block.expansion
