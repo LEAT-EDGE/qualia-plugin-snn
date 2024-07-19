@@ -12,8 +12,6 @@ class Linux(LinuxQualiaCore):
     """Qualia-CodeGen Linux deployer using example from qualia_codegen-plugin-snn for SNN support."""
 
     def __init__(self,
-                 cxxflags: list[str] | None = None,
-                 modeldir: str | None = None,
                  projectdir: str | None = None,
                  outdir: str | None = None) -> None:
         """Construct :class:`qualia_plugin_snn.deployment.qualia_codegen.Linux.Linux`.
@@ -24,8 +22,6 @@ class Linux(LinuxQualiaCore):
             ``<qualia_codegen_plugin_snn.examples>/Linux``
         :param outdir: Path to build products directory, default: ``out/deploy/Linux``
         """
-        super().__init__(cxxflags=cxxflags,
-                         modeldir=modeldir,
-                         projectdir=projectdir if projectdir is not None else
+        super().__init__(projectdir=projectdir if projectdir is not None else
                             resources_to_path(files('qualia_codegen_plugin_snn.examples')/'Linux'),
                          outdir=outdir)
