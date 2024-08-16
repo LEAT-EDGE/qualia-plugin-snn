@@ -27,6 +27,7 @@ from torch import nn
 
 from qualia_plugin_snn.learningframework.SpikingJelly import SpikingJelly
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.Add import Add as SNNAdd
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.QuantizedAdd import QuantizedAdd as SNNQuantizedAdd
 from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
@@ -1743,6 +1744,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
                                     QuantizedIdentity: TorchModelGraph.MODULE_MAPPING[nn.Identity],
                                     qsjl.QuantizedLinear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
+                                    SNNQuantizedAdd:  lambda *_: (TAddLayer, []),
                                     qsjl1d.QuantizedBatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
                                     qsjl2d.QuantizedBatchNorm2d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm2d],
                                     qsjl1d.QuantizedConv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
