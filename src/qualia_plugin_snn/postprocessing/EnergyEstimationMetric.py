@@ -686,6 +686,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         * :class:`qualia_codegen_core.graph.layers.TConvLayer.TConvLayer`
         * :class:`qualia_codegen_core.graph.layers.TDenseLayer.TDenseLayer`
+        * :class:`qualia_codegen_core.graph.layers.TAddLayer.TAddLayer`
 
         :meta public:
         :param modelgraph: Model to computer energy on
@@ -693,7 +694,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param e_wrram: Function to computer memory write energy for a given memory size
         :return: A list of EnergyMetrics for each layer and a total with fields populated with energy estimation
         """
-        from qualia_codegen_core.graph.layers import TConvLayer, TDenseLayer
+        from qualia_codegen_core.graph.layers import TConvLayer, TDenseLayer, TAddLayer
 
         ems: list[EnergyMetrics] = []
         for node in modelgraph.nodes:
@@ -727,6 +728,24 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    input_is_binary=False,
                                    output_is_binary=False,
                                    is_sj=False)
+            elif isinstance(node.layer, TAddLayer):
+                # Assume element-wise addition of inputs, meaning we need to read inputs and write outputs
+
+                em = EnergyMetrics(name=node.layer.name,
+                                    mem_pot=0,  # No potentials for add layer
+                                    mem_weights=0,  # No weights for add layer
+                                    mem_bias=0,  # No biases for add layer
+                                    mem_io=self._e_rdin_add_fnn(node.layer, e_rdram) + self._e_wrout_add_fnn(node.layer, e_wrram),
+                                    ops=self._e_ops_add_fnn(node.layer),
+                                    addr=self._e_addr_add_fnn(node.layer),
+                                    input_spikerate=None,
+                                    output_spikerate=None,
+                                    input_count=None,
+                                    output_count=None,
+                                    input_is_binary=False,
+                                    output_is_binary=False,
+                                    is_sj=False)
+
             else:
                 logger.warning('%s skipped, result may be inaccurate', node.layer.name)
                 continue
