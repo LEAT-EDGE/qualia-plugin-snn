@@ -694,11 +694,27 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param e_wrram: Function to computer memory write energy for a given memory size
         :return: A list of EnergyMetrics for each layer and a total with fields populated with energy estimation
         """
-        from qualia_codegen_core.graph.layers import TConvLayer, TDenseLayer, TAddLayer
+        from qualia_codegen_core.graph.layers import TConvLayer, TDenseLayer, TAddLayer, TFlattenLayer
 
         ems: list[EnergyMetrics] = []
         for node in modelgraph.nodes:
-            if isinstance(node.layer, TConvLayer):
+            if isinstance(node.layer, TFlattenLayer):
+                # Flatten is assumed to not do anything for on-target inference
+                em = EnergyMetrics(name=node.layer.name,
+                                   mem_pot=0,
+                                   mem_weights=0,
+                                   mem_bias=0,
+                                   mem_io=0,
+                                   ops=0,
+                                   addr=0,
+                                   input_spikerate=None,
+                                   output_spikerate=None,
+                                   input_count=None,
+                                   output_count=None,
+                                   input_is_binary=False,
+                                   output_is_binary=False,
+                                   is_sj=False)
+            elif isinstance(node.layer, TConvLayer):
                 em = EnergyMetrics(name=node.layer.name,
                                    mem_pot=0,
                                    mem_weights=self._e_rdweights_conv_fnn(node.layer, e_rdram),
