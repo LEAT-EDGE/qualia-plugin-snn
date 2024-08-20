@@ -19,6 +19,10 @@ from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedI
 from qualia_core.learningmodel.pytorch.layers.QuantizedAdd import QuantizedAdd
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool1d import QuantizedGlobalSumPool1d
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool2d import QuantizedGlobalSumPool2d
+from qualia_core.learningmodel.pytorch.quantized_layers1d import QuantizedConv1d
+from qualia_core.learningmodel.pytorch.quantized_layers2d import QuantizedConv2d
+from qualia_core.learningmodel.pytorch.quantized_layers1d import QuantizedBatchNorm1d
+from qualia_core.learningmodel.pytorch.quantized_layers2d import QuantizedBatchNorm2d
 from qualia_core.learningmodel.pytorch.Quantizer import Quantizer
 from qualia_core.postprocessing.PostProcessing import PostProcessing
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
@@ -1776,6 +1780,10 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     SNNAdd:  lambda *_: (TAddLayer, []),
                                     GlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
                                     GlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
+                                    QuantizedConv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
+                                    QuantizedConv2d: TorchModelGraph.MODULE_MAPPING[nn.Conv2d],
+                                    QuantizedBatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
+                                    QuantizedBatchNorm2d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm2d],
 
                                     QuantizedIdentity: TorchModelGraph.MODULE_MAPPING[nn.Identity],
                                     qsjl.QuantizedLinear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
