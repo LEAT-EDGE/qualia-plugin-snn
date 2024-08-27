@@ -227,23 +227,16 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
     * :class:`spikingjelly.activation_based.neuron.LIFNode` for spiking neural networks
     """
 
-    _m_e_add: float = 0.1
-    """Energy for add operation in pJ, 45nm int32.
+    # Predefined energy values for different bit widths
+    energy_values = {
+        8: {'add': 0.03, 'mul': 0.2},   # values for 8-bit
+        # from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
+        # Mark Horowitz, ISSCC 2014.
 
-    Default from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
-    Mark Horowitz, ISSCC 2014.
-
-    :meta public:
-    """  # noqa: RUF001
-
-    _m_e_mul: float = 3.1
-    """Energy for mul operation in pJ, 45nm int32.
-
-    Default from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
-    Mark Horowitz, ISSCC 2014.
-
-    :meta public:
-    """  # noqa: RUF001
+        32: {'add': 0.1, 'mul': 3.1},   # values for 32-bit
+        # from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
+        # Mark Horowitz, ISSCC 2014.
+    }
 
     #: CSV logger to record metrics for each layer in a file inside the `logs/<bench.name>/EnergyEstimationMetric` directory
     csvlogger: CSVLogger[EnergyEstimationMetricLoggerFields]
@@ -262,10 +255,34 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         self._mem_width = mem_width
         self._fifo_size = fifo_size
         self._total_spikerate_exclude_nonbinary = total_spikerate_exclude_nonbinary
+        self._set_energy_values(mem_width)
 
         self.csvlogger = CSVLogger(name='EnergyEstimationMetric')
         self.csvlogger.fields = EnergyEstimationMetricLoggerFields
 
+    def _set_energy_values(self, bit_width: int) -> None:
+        """Set energy values for add and mul operations based on the bit width.
+
+        8 for 8-bit and bellow and 32 for bitwidth between 9 and 32.
+
+        :param bit_width: The bit width for the operations.
+        """
+        if bit_width in self.energy_values:
+            self._m_e_add = self.energy_values[bit_width]['add']
+            self._m_e_mul = self.energy_values[bit_width]['mul']
+            print(f'Using {bit_width}-bit energy values.')
+        else:
+            if bit_width < 8:
+                Warning (f'Unsupported bit width: {bit_width}. Using 8-bit energy values.')
+                self._m_e_add = self.energy_values[8]['add']
+                self._m_e_mul = self.energy_values[8]['mul']
+            elif bit_width > 8 and bit_width <= 32:
+                Warning (f'Unsupported bit width: {bit_width}. Using 32-bit energy values.')
+                self._m_e_add = self.energy_values[32]['add']
+                self._m_e_mul = self.energy_values[32]['mul']
+            else:
+                raise ValueError(f'Unsupported bit width: {bit_width}')
+            
     #######
     # FNN #
     #######
