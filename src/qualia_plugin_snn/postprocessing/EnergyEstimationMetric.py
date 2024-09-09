@@ -27,7 +27,8 @@ from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedL
 from qualia_core.learningmodel.pytorch.Quantizer import Quantizer
 from qualia_core.postprocessing.PostProcessing import PostProcessing
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
-from qualia_core.utils.logger import CSVLogger
+from qualia_core.utils.logger import Logger
+from qualia_core.utils.logger.CSVFormatter import CSVFormatter
 from torch import nn
 
 from qualia_plugin_snn.learningframework.SpikingJelly import SpikingJelly
@@ -244,7 +245,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
     def __init__(self,
                  mem_width: int,
                  fifo_size: int = 0,
-                 total_spikerate_exclude_nonbinary: bool = True) -> None:  # noqa: FBT001, FBT002
+                 total_spikerate_exclude_nonbinary: bool = True,
+                 estimation_type: None = None) -> None:  # noqa: FBT001, FBT002
         """Construct :class:`qualia_plugin_snn.postprocessing.EnergyEstimationMetric.EnergyEstimationMetric`.
 
         :param mem_width: Memory access size in bits, e.g. 16 for 16-bit quantization
@@ -255,33 +257,126 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         self._mem_width = mem_width
         self._fifo_size = fifo_size
         self._total_spikerate_exclude_nonbinary = total_spikerate_exclude_nonbinary
-        self._set_energy_values(mem_width)
+        self._set_energy_values(mem_width, estimation_type)
 
-        self.csvlogger = CSVLogger(name='EnergyEstimationMetric')
+        # Initialize CSV suffix with the memory width, self_m_e_add, self_m_e_mul and estimation type 
+        # without "{", "}", ":", ",", "'" or " " characters
+        suffix = f'mem{mem_width}bit_{self._m_e_add}_{self._m_e_mul}'
+        if estimation_type is not None:
+            suffix += f'_{estimation_type}'
+        suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(" ", '')
+        self.csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix+".csv", formatter=CSVFormatter())
         self.csvlogger.fields = EnergyEstimationMetricLoggerFields
 
-    def _set_energy_values(self, bit_width: int) -> None:
-        """Set energy values for add and mul operations based on the bit width.
-
-        8 for 8-bit and bellow and 32 for bitwidth between 9 and 32.
-
-        :param bit_width: The bit width for the operations.
+    def _set_estimation_type(self, bit_width: int, type: str, estimation_type: str | int) -> float:
         """
-        if bit_width in self.energy_values:
+        Set the estimation type for the energy values.
+
+        If estimation_type is not in ['ICONIP', 'saturation', 'linear', 'quadratic'], raise ValueError.
+
+        If estimation_type is ''ICONIP', use the energy values from the ICONIP 2022 paper (i.e. 32-bit values).
+
+        If estimation_type is 'saturation', use self.energy_values[8][type] for 8-bit and below, and 
+        self.energy_values[32][type] for bit widths between 9 and 32.
+
+        If estimation_type is 'linear', use self.energy_values[8][type] and self.energy_values[32][type] 
+        to estimate the energy values by solving a linear equation: y = m*bit_width + c.
+
+        If estimation_type is 'quadratic', use self.energy_values[8][type] and self.energy_values[32][type] 
+        to estimate the energy values by solving a quadratic equation: y = a*bit_width^2 + b*bit_width + c.
+
+        :param estimation_type: The estimation type for the energy values.
+        """
+        
+        # Check for valid estimation_type
+        if estimation_type not in ['ICONIP','saturation', 'linear', 'quadratic']:
+            raise ValueError("Invalid estimation_type. Must be one of ['ICONIP','saturation', 'linear', 'quadratic']")
+
+        # Get the 8-bit and 32-bit energy values for the given type
+        energy_8bit = self.energy_values[8][type]
+        energy_32bit = self.energy_values[32][type]
+
+        if estimation_type == 'ICONIP':
+            # For ICONIP, return the 32-bit value for bit_width <= 32
+            energy = energy_32bit
+
+        elif estimation_type == 'saturation':
+            # For saturation, return the 8-bit value for bit_width <= 8, otherwise the 32-bit value
+            if bit_width <= 8:
+                energy = energy_8bit
+            elif 9 <= bit_width <= 32:
+                energy = energy_32bit
+            else:
+                raise ValueError("Bit width out of supported range (1-32) for saturation estimation.")
+
+        elif estimation_type == 'linear':
+            # For linear, solve the equation y = m*bit_width + c
+            # Use (x1, y1) = (8, energy_8bit) and (x2, y2) = (32, energy_32bit) to find m and c
+            x1, y1 = 8, energy_8bit
+            x2, y2 = 32, energy_32bit
+
+            # Solve for slope (m) and intercept (c)
+            m = (y2 - y1) / (x2 - x1)
+            c = y1 - m * x1
+
+            # Estimate energy for the given bit_width
+            energy = m * bit_width + c
+
+        elif estimation_type == 'quadratic':
+            # For quadratic, solve the equation y = a*bit_width^2 + b*bit_width + c
+            # We assume two points (8, energy_8bit) and (32, energy_32bit), plus assume c = 0 (or another known value)
+            x1, y1 = 8, energy_8bit
+            x2, y2 = 32, energy_32bit
+
+            # We need a third point to solve a quadratic equation. We assume (bit_width=0, energy=0) as a reference point.
+            x0, y0 = 0, 0  # This assumes no energy consumption at 0 bits (can be modified if you have another reference)
+            
+            import numpy as np
+            # Solve the system of equations to find a, b, and c
+            A = np.array([
+                [x0**2, x0, 1],
+                [x1**2, x1, 1],
+                [x2**2, x2, 1]
+            ])
+            B = np.array([y0, y1, y2])
+
+            # Solve for [a, b, c]
+            a, b, c = np.linalg.solve(A, B)
+
+            # Estimate energy for the given bit_width using quadratic equation
+            energy = a * bit_width**2 + b * bit_width + c
+        else:
+            raise ValueError("Invalid estimation_type. Must be one of ['ICONIP', 'saturation', 'linear', 'quadratic']")    
+        return energy
+
+    
+    def _set_energy_values(self, bit_width: int, estimation_type : None) -> None:
+        """
+        Set the energy values for the given bit width.
+
+        If bit_width is 8 or 32, set the energy values using the predefined energy values.
+
+        Else if estimation_type is not None, check if estimation_type['add'] and estimation_type['mul'] are defined,
+        and set the energy values using the estimation type.
+
+        Else raise ValueError.
+
+        :param bit_width: The bit width for the energy values.
+        :param estimation_type: The estimation type for the energy values.
+        """
+
+        if bit_width in self.energy_values and estimation_type is None:
             self._m_e_add = self.energy_values[bit_width]['add']
             self._m_e_mul = self.energy_values[bit_width]['mul']
-            print(f'Using {bit_width}-bit energy values.')
-        else:
-            if bit_width < 8:
-                Warning (f'Unsupported bit width: {bit_width}. Using 8-bit energy values.')
-                self._m_e_add = self.energy_values[8]['add']
-                self._m_e_mul = self.energy_values[8]['mul']
-            elif bit_width > 8 and bit_width <= 32:
-                Warning (f'Unsupported bit width: {bit_width}. Using 32-bit energy values.')
-                self._m_e_add = self.energy_values[32]['add']
-                self._m_e_mul = self.energy_values[32]['mul']
+            print(f'Using {bit_width}-bit energy values from predefined values in Mark Horowitz, ISSCC 2014')
+        elif estimation_type is not None:
+            if 'add' in estimation_type and 'mul' in estimation_type:
+                self._m_e_add = self._set_estimation_type(bit_width, 'add', estimation_type['add'])
+                self._m_e_mul = self._set_estimation_type(bit_width, 'mul', estimation_type['mul'])
+                print(f'Using {bit_width}-bit energy values estimated using {estimation_type}.')
             else:
-                raise ValueError(f'Unsupported bit width: {bit_width}')
+                raise ValueError("estimation_type must contain 'add' and 'mul' keys.")
+        
             
     #######
     # FNN #
