@@ -376,6 +376,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                 print(f'Using {bit_width}-bit energy values estimated using {estimation_type}.')
             else:
                 raise ValueError("estimation_type must contain 'add' and 'mul' keys.")
+        else:
+            self._m_e_add = self.energy_values[32]['add']
+            self._m_e_mul = self.energy_values[32]['mul']
         
             
     #######
