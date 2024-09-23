@@ -246,7 +246,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                  mem_width: int,
                  fifo_size: int = 0,
                  total_spikerate_exclude_nonbinary: bool = True,
-                 estimation_type: None = None) -> None:  # noqa: FBT001, FBT002
+                 op_estimation_type: None = None,
+                 sram_estimation_type: None = None) -> None:  # noqa: FBT001, FBT002
         """Construct :class:`qualia_plugin_snn.postprocessing.EnergyEstimationMetric.EnergyEstimationMetric`.
 
         :param mem_width: Memory access size in bits, e.g. 16 for 16-bit quantization
@@ -257,50 +258,59 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         self._mem_width = mem_width
         self._fifo_size = fifo_size
         self._total_spikerate_exclude_nonbinary = total_spikerate_exclude_nonbinary
-        self._set_energy_values(mem_width, estimation_type)
+        self._set_energy_values(mem_width, op_estimation_type)
+        self._sram_estimation_type = sram_estimation_type
+            
 
-        # Initialize CSV suffix with the memory width, self_m_e_add, self_m_e_mul and estimation type 
+
+        # Initialize CSV suffix with the memory width, self_m_e_add, self_m_e_mul, op_estimation_type and sram_estimation_type
         # without "{", "}", ":", ",", "'" or " " characters
         suffix = f'mem{mem_width}bit_{self._m_e_add}_{self._m_e_mul}'
-        if estimation_type is not None:
-            suffix += f'_{estimation_type}'
+        if op_estimation_type is not None:
+            suffix += f'_{op_estimation_type}'
+        else:
+            suffix += '_ICONIP'
+        if sram_estimation_type is not None:
+            suffix += f'_sram{sram_estimation_type}'
+        else:
+            suffix += '_sramICONIP'
         suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(" ", '')
         self.csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix+".csv", formatter=CSVFormatter())
         self.csvlogger.fields = EnergyEstimationMetricLoggerFields
 
-    def _set_estimation_type(self, bit_width: int, type: str, estimation_type: str | int) -> float:
+    def _set_op_estimation_type(self, bit_width: int, type: str, op_estimation_type: str | int) -> float:
         """
         Set the estimation type for the energy values.
 
-        If estimation_type is not in ['ICONIP', 'saturation', 'linear', 'quadratic'], raise ValueError.
+        If op_estimation_type is not in ['ICONIP', 'saturation', 'linear', 'quadratic'], raise ValueError.
 
-        If estimation_type is ''ICONIP', use the energy values from the ICONIP 2022 paper (i.e. 32-bit values).
+        If op_estimation_type is ''ICONIP', use the energy values from the ICONIP 2022 paper (i.e. 32-bit values).
 
-        If estimation_type is 'saturation', use self.energy_values[8][type] for 8-bit and below, and 
+        If op_estimation_type is 'saturation', use self.energy_values[8][type] for 8-bit and below, and 
         self.energy_values[32][type] for bit widths between 9 and 32.
 
-        If estimation_type is 'linear', use self.energy_values[8][type] and self.energy_values[32][type] 
+        If op_estimation_type is 'linear', use self.energy_values[8][type] and self.energy_values[32][type] 
         to estimate the energy values by solving a linear equation: y = m*bit_width + c.
 
-        If estimation_type is 'quadratic', use self.energy_values[8][type] and self.energy_values[32][type] 
+        If op_estimation_type is 'quadratic', use self.energy_values[8][type] and self.energy_values[32][type] 
         to estimate the energy values by solving a quadratic equation: y = a*bit_width^2 + b*bit_width + c.
 
-        :param estimation_type: The estimation type for the energy values.
+        :param op_estimation_type: The estimation type for the energy values.
         """
         
-        # Check for valid estimation_type
-        if estimation_type not in ['ICONIP','saturation', 'linear', 'quadratic']:
-            raise ValueError("Invalid estimation_type. Must be one of ['ICONIP','saturation', 'linear', 'quadratic']")
+        # Check for valid op_estimation_type
+        if op_estimation_type not in ['ICONIP','saturation', 'linear', 'quadratic']:
+            raise ValueError("Invalid op_estimation_type. Must be one of ['ICONIP','saturation', 'linear', 'quadratic']")
 
         # Get the 8-bit and 32-bit energy values for the given type
         energy_8bit = self.energy_values[8][type]
         energy_32bit = self.energy_values[32][type]
 
-        if estimation_type == 'ICONIP':
+        if op_estimation_type == 'ICONIP':
             # For ICONIP, return the 32-bit value for bit_width <= 32
             energy = energy_32bit
 
-        elif estimation_type == 'saturation':
+        elif op_estimation_type == 'saturation':
             # For saturation, return the 8-bit value for bit_width <= 8, otherwise the 32-bit value
             if bit_width <= 8:
                 energy = energy_8bit
@@ -309,7 +319,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             else:
                 raise ValueError("Bit width out of supported range (1-32) for saturation estimation.")
 
-        elif estimation_type == 'linear':
+        elif op_estimation_type == 'linear':
             # For linear, solve the equation y = m*bit_width + c
             # Use (x1, y1) = (8, energy_8bit) and (x2, y2) = (32, energy_32bit) to find m and c
             x1, y1 = 8, energy_8bit
@@ -322,7 +332,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             # Estimate energy for the given bit_width
             energy = m * bit_width + c
 
-        elif estimation_type == 'quadratic':
+        elif op_estimation_type == 'quadratic':
             # For quadratic, solve the equation y = a*bit_width^2 + b*bit_width + c
             # We assume two points (8, energy_8bit) and (32, energy_32bit), plus assume c = 0 (or another known value)
             x1, y1 = 8, energy_8bit
@@ -346,36 +356,36 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             # Estimate energy for the given bit_width using quadratic equation
             energy = a * bit_width**2 + b * bit_width + c
         else:
-            raise ValueError("Invalid estimation_type. Must be one of ['ICONIP', 'saturation', 'linear', 'quadratic']")    
+            raise ValueError("Invalid op_estimation_type. Must be one of ['ICONIP', 'saturation', 'linear', 'quadratic']")    
         return energy
 
     
-    def _set_energy_values(self, bit_width: int, estimation_type : None) -> None:
+    def _set_energy_values(self, bit_width: int, op_estimation_type : None) -> None:
         """
         Set the energy values for the given bit width.
 
         If bit_width is 8 or 32, set the energy values using the predefined energy values.
 
-        Else if estimation_type is not None, check if estimation_type['add'] and estimation_type['mul'] are defined,
+        Else if op_estimation_type is not None, check if op_estimation_type['add'] and op_estimation_type['mul'] are defined,
         and set the energy values using the estimation type.
 
         Else raise ValueError.
 
         :param bit_width: The bit width for the energy values.
-        :param estimation_type: The estimation type for the energy values.
+        :param op_estimation_type: The estimation type for the energy values.
         """
 
-        if bit_width in self.energy_values and estimation_type is None:
+        if bit_width in self.energy_values and op_estimation_type is None:
             self._m_e_add = self.energy_values[bit_width]['add']
             self._m_e_mul = self.energy_values[bit_width]['mul']
             print(f'Using {bit_width}-bit energy values from predefined values in Mark Horowitz, ISSCC 2014')
-        elif estimation_type is not None:
-            if 'add' in estimation_type and 'mul' in estimation_type:
-                self._m_e_add = self._set_estimation_type(bit_width, 'add', estimation_type['add'])
-                self._m_e_mul = self._set_estimation_type(bit_width, 'mul', estimation_type['mul'])
-                print(f'Using {bit_width}-bit energy values estimated using {estimation_type}.')
+        elif op_estimation_type is not None:
+            if 'add' in op_estimation_type and 'mul' in op_estimation_type:
+                self._m_e_add = self._set_op_estimation_type(bit_width, 'add', op_estimation_type['add'])
+                self._m_e_mul = self._set_op_estimation_type(bit_width, 'mul', op_estimation_type['mul'])
+                print(f'Using {bit_width}-bit energy values estimated using {op_estimation_type}.')
             else:
-                raise ValueError("estimation_type must contain 'add' and 'mul' keys.")
+                raise ValueError("op_estimation_type must contain 'add' and 'mul' keys.")
         else:
             self._m_e_add = self.energy_values[32]['add']
             self._m_e_mul = self.energy_values[32]['mul']
@@ -2038,10 +2048,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         return trainresult, model_conf
 
     #def _e_ram(self, mem_params: int) -> float:
-    #    """Linear interpolation with {(8192, 10), (32768, 20), (1048576, 100)} point set (B, pJ) using least-squares methods.
-    #
-    #    45nm SRAM"""
-    #    0.000082816 * mem_params + 13.2563
+    #    """Linear interpolation with {(65536, 10), (262144, 20), (8388608, 100)} point set (B, pJ) using least-squares methods.
 
     def _e_ram(self, mem_params: int, bits: int) -> float:
         """From Computation_cost_metric.ipynb 45nm SRAM.
@@ -2051,7 +2058,25 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param bits: Data width in bits
         :return: Energy for a single read or write access in this memory
         """
-        return 1.09 * 10**(-5) * mem_params * bits + 13.2
+        
+        # Case where we use 32KB SRAM blocks with a 64-bit data bus
+        if self._sram_estimation_type is not None and self._sram_estimation_type == 'new':
+            # Data bus width (64 bits)
+            bus_width = 64
+            
+            # Energy consumption per access (10 pJ for 8KB/65536 bits SRAM blocks)
+            conso_per_bus_pj = 10
+
+            # cost for one access
+            cost_per_single_value_access = conso_per_bus_pj / (bus_width//bits)
+
+
+            return cost_per_single_value_access
+        
+        # Default case
+        else:
+            # Simple linear formula
+            return 1.09 * 10**(-5) * mem_params * bits + 13.2
 
     @property
     def _e_add(self) -> float:
