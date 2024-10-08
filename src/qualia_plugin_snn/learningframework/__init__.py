@@ -2,6 +2,10 @@
 
 from .SpikingJelly import SpikingJelly
 from .SpikingJellyMultiStep import SpikingJellyMultiStep
+from .SpikingJellyMultiStepTimeStepsInData import SpikingJellyMultiStepTimeStepsInData
 from .SpikingJellyTimeStepsInData import SpikingJellyTimeStepsInData
 
-__all__ = ['SpikingJelly', 'SpikingJellyMultiStep', 'SpikingJellyTimeStepsInData']
+__all__ = ['SpikingJelly',
+           'SpikingJellyMultiStep',
+           'SpikingJellyMultiStepTimeStepsInData',
+           'SpikingJellyTimeStepsInData']
