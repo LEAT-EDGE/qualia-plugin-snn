@@ -184,6 +184,14 @@ class QuantizedSCNN(SNN):
                                                     quant_params=quant_params)
 
         if gsp:
+            layers[f'conv{i}'] = sjlayers_t.QuantizedConv(in_channels=filters[-1],
+                                                          out_channels=output_shape[0],
+                                                          kernel_size=1,
+                                                          padding=0,
+                                                          stride=1,
+                                                          bias=True,
+                                                          quant_params=quant_params,
+                                                          step_mode=self.step_mode)
             layers['gsp'] = layers_t.QuantizedGlobalSumPool(quant_params=quant_params)
         else:
             layers['flatten'] = Flatten(step_mode=self.step_mode)

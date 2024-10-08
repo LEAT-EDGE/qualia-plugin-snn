@@ -182,6 +182,13 @@ class SCNN(SNN):
                                                     step_mode=self.step_mode)
 
         if gsp:
+            layers[f'conv{i}'] = sjlayers_t.Conv(in_channels=filters[-1],
+                                                 out_channels=output_shape[0],
+                                                 kernel_size=1,
+                                                 padding=0,
+                                                 stride=1,
+                                                 bias=True,
+                                                 step_mode=self.step_mode)
             layers['gsp'] = layers_t.GlobalSumPool()
         else:
             layers['flatten'] = Flatten(step_mode=self.step_mode)
