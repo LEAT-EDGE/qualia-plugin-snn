@@ -840,7 +840,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                 + timesteps * math.prod(layer.output_shape[0][1:])
                 + theta_out)
 
-    def _e_ops_conv_snn(self,  # noqa: PLR0913
+    def _e_ops_conv_snn(self,
                       layer: TConvLayer,
                       input_spikerate: float,
                       output_spikerate: float,
@@ -899,7 +899,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                 + timesteps * layer.output_shape[0][-1]
                 + output_spikerate * math.prod(layer.output_shape[0][1:]))
 
-    def _e_ops_fc_snn(self,  # noqa: PLR0913
+    def _e_ops_fc_snn(self,
                       layer: TDenseLayer,
                       input_spikerate: float,
                       output_spikerate: float,
@@ -1131,7 +1131,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         return s
 
-    def _compute_spikerate(self,  # noqa: PLR0913
+    def _compute_spikerate(self,
                            trainresult: TrainResult,
                            framework: SpikingJelly,
                            model: SNN,

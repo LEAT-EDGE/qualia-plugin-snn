@@ -89,7 +89,7 @@ class IFSRL(nn.Module):
 
     v: torch.Tensor
 
-    def __init__(self,  # noqa: PLR0913
+    def __init__(self,
                  v_threshold: float = 1.0,
                  vth_init_l: float = 0.8,
                  vth_init_h: float = 1.,
@@ -154,7 +154,7 @@ class IFSRL(nn.Module):
         return z
 
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward of :meth:`ifsrl_fn`.
 
         :param input: Input tensor
@@ -169,7 +169,7 @@ class ATIF(BaseNode):  # type: ignore[misc]
 
     v: torch.Tensor
 
-    def __init__(self,  # noqa: PLR0913
+    def __init__(self,
                  v_threshold: float = 1.0,
                  vth_init_l: float = 0.8,
                  vth_init_h: float = 1.,

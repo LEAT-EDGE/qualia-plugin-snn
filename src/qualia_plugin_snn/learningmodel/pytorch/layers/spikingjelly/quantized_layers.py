@@ -59,7 +59,7 @@ class QuantizedLinear(quantized_layers.QuantizedLinear,
 
     # Copied to call super().forward(x) of quantized_layers1d.Conv1d instead of torch.nn.Conv1d
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward :class:`qualia_core.learningmodel.pytorch.layers.quantized_layers.QuantizedLinear` with ``step_mode`` support.
 
         :param input: Input tensor

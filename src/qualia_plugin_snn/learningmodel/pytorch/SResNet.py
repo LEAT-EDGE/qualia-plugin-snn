@@ -35,7 +35,7 @@ class BasicBlockBuilder(Protocol):
     Used to bind hyperparameters constant across all the ResNet blocks.
     """
 
-    def __call__(self,  # noqa: PLR0913
+    def __call__(self,
                  in_planes: int,
                  planes: int,
                  kernel_size: int,
@@ -172,7 +172,7 @@ class BasicBlock(nn.Module):
         self.add = Add()
 
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward of ResNet block.
 
         :param input: Input tensor
@@ -416,7 +416,7 @@ class SResNet(SNN):
         return nn.Sequential(*layers)
 
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward of residual spiking neural network.
 
         :param input: Input tensor

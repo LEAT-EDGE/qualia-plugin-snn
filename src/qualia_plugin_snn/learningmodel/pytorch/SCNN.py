@@ -220,7 +220,7 @@ class SCNN(SNN):
         self.layers = nn.ModuleDict(layers)
 
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward calls each of the SCNN :attr:`layers` sequentially.
 
         :param input: Input tensor

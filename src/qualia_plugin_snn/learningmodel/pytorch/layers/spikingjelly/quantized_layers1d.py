@@ -78,7 +78,7 @@ class QuantizedConv1d(quantized_layers1d.QuantizedConv1d,
     # From spikingjelly.activation_based.layer.Conv1d
     # Copied to call super().forward(x) of quantized_layers1d.Conv1d instead of torch.nn.Conv1d
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward :class:`qualia_core.learningmodel.pytorch.quantized_layers1d.QuantizedConv1d` with ``step_mode`` support.
 
         :param input: Input tensor
@@ -136,7 +136,7 @@ class QuantizedMaxPool1d(quantized_layers1d.QuantizedMaxPool1d,
     # From spikingjelly.activation_based.layer.MaxPool1d
     # Copied to call super().forward(x) of quantized_layers1d.MaxPool1d instead of torch.nn.MaxPool1d
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward :class:`qualia_core.learningmodel.pytorch.quantized_layers1d.QuantizedMaxPool1d` with ``step_mode`` support.
 
         :param input: Input tensor
@@ -206,7 +206,7 @@ class QuantizedBatchNorm1d(quantized_layers1d.QuantizedBatchNorm1d,
     # From spikingjelly.activation_based.layer.MaxPool1d
     # Copied to call super().forward(x) of quantized_layers1d.MaxPool1d instead of torch.nn.MaxPool1d
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward :class:`qualia_core.learningmodel.pytorch.quantized_layers1d.QuantizedBatchNorm1d` with ``step_mode`` support.
 
         :param input: Input tensor

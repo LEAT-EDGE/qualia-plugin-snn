@@ -52,7 +52,7 @@ class QuantizedBasicBlockBuilder(Protocol):
     Used to bind hyperparameters constant across all the ResNet blocks.
     """
 
-    def __call__(self,  # noqa: PLR0913
+    def __call__(self,
                  in_planes: int,
                  planes: int,
                  kernel_size: int,
@@ -202,7 +202,7 @@ class QuantizedBasicBlock(nn.Module):
         self.add = QuantizedAdd(quant_params=quant_params , activation=None)
 
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         """Forward of quantized ResNet block.
 
         :param input: Input tensor
@@ -446,7 +446,7 @@ class QuantizedSResNet(SNN):
         return nn.Sequential(*layers)
 
     @override
-    def forward(self, input: torch.Tensor) -> torch.Tensor:  # noqa: A002
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
         x = input
 
         out = self.identity1(x)
