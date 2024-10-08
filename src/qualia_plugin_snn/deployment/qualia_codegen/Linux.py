@@ -5,15 +5,19 @@ from __future__ import annotations
 from importlib.resources import files
 
 from qualia_core.deployment.qualia_codegen.Linux import Linux as LinuxQualiaCore
+from qualia_core.typing import TYPE_CHECKING
 from qualia_core.utils.path import resources_to_path
+
+if TYPE_CHECKING:
+    from pathlib import Path  # noqa: TCH003
 
 
 class Linux(LinuxQualiaCore):
     """Qualia-CodeGen Linux deployer using example from qualia_codegen-plugin-snn for SNN support."""
 
     def __init__(self,
-                 projectdir: str | None = None,
-                 outdir: str | None = None) -> None:
+                 projectdir: str | Path | None = None,
+                 outdir: str | Path | None = None) -> None:
         """Construct :class:`qualia_plugin_snn.deployment.qualia_codegen.Linux.Linux`.
 
         :param cxxflags: Override default compiler flags, see :meth:`qualia_core.deployment.qualia_codegen.Linux.Linux.__init__`
