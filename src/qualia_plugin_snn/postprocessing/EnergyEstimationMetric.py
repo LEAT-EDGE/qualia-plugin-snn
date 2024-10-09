@@ -46,6 +46,15 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SpikeCounter:
+    """Holds the statistics and properties of an input or output tensor of a layer after inference.
+
+    :param spike_count: Number of spikes recorded
+    :param tensor_sum: Sum of elements of the tensor
+    :param size: Number of elements in the tensor
+    :param binary: True if all elements are binary (0 or 1), False otherwise
+    :param sample_count: Number of times the tensor has been updated
+    """
+
     spike_count: Number
     tensor_sum: Number
     size: int
@@ -96,9 +105,9 @@ class EnergyEstimationMetricLoggerFields(NamedTuple):
     #: Average output spike rate per timestep
     output_spikerate: float
     #: Input count per timestep
-    input_count: int
+    input_count: Number
     #: Output count per timestep
-    output_count: int
+    output_count: Number
     #: If input tensor only contains binary values, i.e., spikes
     input_is_binary: bool
     #: If output tensor only contains binary values, i.e., spikes
@@ -145,9 +154,9 @@ class EnergyMetrics:
     #: Average output spike rate per timestep
     output_spikerate: float | None
     #: Input count per timestep
-    input_count: int | None
+    input_count: Number | None
     #: Output count per timestep
-    output_count: int | None
+    output_count: Number | None
     #: If input tensor only contains binary values, i.e., spikes
     input_is_binary: bool
     #: If output tensor only contains binary values, i.e., spikes
@@ -1209,14 +1218,14 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
 
 
-    def _compute_model_energy_snn(self,  # noqa: PLR0913
+    def _compute_model_energy_snn(self,  # noqa: PLR0913, C901, PLR0912, PLR0915
                                   modelgraph: ModelGraph,
                                   input_spikerates: dict[str, float],
                                   output_spikerates: dict[str, float],
                                   input_is_binary: dict[str, bool],
                                   output_is_binary: dict[str, bool],
-                                  input_counts: dict[str, int],
-                                  output_counts: dict[str, int],
+                                  input_counts: dict[str, Number],
+                                  output_counts: dict[str, Number],
                                   is_module_sj: dict[str, bool],
                                   timesteps: int,
                                   e_rdram: Callable[[int], float],
@@ -1287,6 +1296,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    output_is_binary=output_is_binary[node.layer.name],
                                    is_sj=is_module_sj[node.layer.name])
             elif is_module_sj[node.layer.name]:
+                is_sj: bool | Literal['Hybrid']
+
                 if isinstance(node.layer, TConvLayer):
                     if not input_is_binary[node.layer.name]: # Non-binary dense input:
                         e_mem_io = (self._e_rdin_conv_fnn(node.layer, e_rdram) # Dense reading of inputs
@@ -1368,7 +1379,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                        is_sj=is_module_sj[node.layer.name],
                                        )
 
-            else:
+            else:  # noqa: PLR5501 keep separate if for clarity and consistency
                 if isinstance(node.layer, TConvLayer):
                     em = EnergyMetrics(name=node.layer.name,
                                        mem_pot=0,
@@ -1438,9 +1449,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    is_sj=is_module_sj[node.layer.name])
             ems.append(em)
 
-        total_is_sj = (True if all(is_sj == True for is_sj in is_module_sj.values()) else
-                       False if all(not is_sj for is_sj in is_module_sj.values()) else
-                       'Hybrid')
+        total_is_sj: bool | Literal['Hybrid'] = (True if all(is_sj is True for is_sj in is_module_sj.values()) else
+                                                 False if all(not is_sj for is_sj in is_module_sj.values()) else
+                                                 'Hybrid')
 
         em_total = EnergyMetrics(name='Total',
                                  mem_pot=sum(em.mem_pot for em in ems),
@@ -1556,7 +1567,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             return isinstance(m, sjb.StepModule)
 
         def hook(layername: str, module: nn.Module, x: torch.Tensor, output: torch.Tensor) -> None:
-            input_cat = (torch.cat(x, dim=-1) if isinstance(x, tuple) else x) # Concatenate in last dim to handle Add layer
+            # Concatenate in last dim to handle Add layer
+            input_cat = (torch.cat(cast(tuple[torch.Tensor], x), dim=-1) if isinstance(x, tuple) else x)
+
             inputnp = input_cat.count_nonzero().item()
             outputnp = output.count_nonzero().item()
 
@@ -1677,7 +1690,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         return input_total_spikerate, output_total_spikerate, input_total_count, output_total_count
 
     @override
-    def __call__(self,  # noqa: C901
+    def __call__(self,  # noqa: C901, PLR0912, PLR0915
                  trainresult: TrainResult,
                  model_conf: ModelConfigDict) -> tuple[TrainResult, ModelConfigDict]:
         """Compute energy estimation metric from Lemaire et al, 2022.
@@ -1795,7 +1808,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                     is_module_sj[new_in_name] = is_module_sj[in_name]
                     node.innodes[0].layer.name = new_in_name
 
-                if isinstance(node.layer, TAddLayer):
+                if isinstance(node.layer, TAddLayer):  # noqa: SIM102 if statements separated for clarity and documentation
                     # Special case for Add to handle SResNet, only for Add layer with full "binary" inputs
                     # Includes Add layers that may have had their input connected to a previous Add layer
                     # that switched to "binary" during this very same process.
