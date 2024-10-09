@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Protocol
+from typing import Protocol, cast
 
 import numpy as np
 import torch
@@ -199,7 +199,7 @@ class QuantizedBasicBlock(nn.Module):
                                                          momentum=bn_momentum,
                                                          step_mode=step_mode,
                                                          quant_params=quant_params)
-        self.add = QuantizedAdd(quant_params=quant_params , activation=None)
+        self.add = QuantizedAdd(quant_params=quant_params)
 
     @override
     def forward(self, input: torch.Tensor) -> torch.Tensor:
