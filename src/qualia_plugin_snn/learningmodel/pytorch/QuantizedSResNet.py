@@ -58,14 +58,14 @@ class QuantizedBasicBlockBuilder(Protocol):
                  kernel_size: int,
                  stride: int,
                  padding: int) -> QuantizedBasicBlock:
-        """Build a :class:`BasicBlock`.
+        """Build a :class:`QuantizedBasicBlock`.
 
         :param in_planes: Number of input channels
         :param planes: Number of filters (i.e., output channels) in the main branch Conv layers
         :param kernel_size: ``kernel_size`` for the main branch Conv layers
         :param stride: ``kernel_size`` for the MaxPool layers, no MaxPool layer added if `1`
         :param padding: Padding for the main branch Conv layers
-        :return: A :class:`BasicBlock`
+        :return: A :class:`QuantizedBasicBlock`
         """
         ...
 
