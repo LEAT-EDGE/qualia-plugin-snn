@@ -13,7 +13,8 @@ from torch.fx.graph_module import GraphModule
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    from torch import nn  # noqa: TCH002
+    from qualia_core.learningframework.PyTorch import PyTorch  # noqa: TC002
+    from torch import nn  # noqa: TC002
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -45,12 +46,10 @@ class FuseBatchNorm(FuseBatchNormQualiaCore):
     Extended attributes ``timesteps`` and ``is_snn`` are copied into target model.
     """
 
-    custom_layers: tuple[type[nn.Module | sjb.StepModule], ...] = (
+    extra_custom_layers: tuple[type[nn.Module | sjb.StepModule], ...] = (
             sjn.BaseNode,
             sjb.StepModule, # StepModule not a subclass of nn.Module but still required to avoid parsing sj-wrapped nn layers
-            *FuseBatchNormQualiaCore.custom_layers,
             )
-
 
     def __init__(self) -> None:
         """Construct :class:`qualia_plugin_snn.postprocessing.FuseBatchNorm.FuseBatchNorm`.
@@ -69,6 +68,7 @@ class FuseBatchNorm(FuseBatchNormQualiaCore):
     def fuse(self,
              model: nn.Module,
              graphmodule_cls: type[GraphModule],
+             framework: PyTorch,
              inplace: bool = False) -> GraphModule:
         """Fuse BatchNorm to Conv and copy source model ``timesteps`` and `is_snn` attributes to target model.
 
@@ -79,7 +79,10 @@ class FuseBatchNorm(FuseBatchNormQualiaCore):
         if isinstance(model, sjb.StepModule):
             graphmodule_cls = GraphModuleStepModule
 
-        fused_model = super().fuse(model, graphmodule_cls=graphmodule_cls, inplace=inplace)
+        fused_model = super().fuse(model,
+                                   graphmodule_cls=graphmodule_cls,
+                                   framework=framework,
+                                   inplace=inplace)
         if hasattr(model, 'timesteps'):
             fused_model.timesteps = model.timesteps
         if hasattr(model, 'step_mode'):
