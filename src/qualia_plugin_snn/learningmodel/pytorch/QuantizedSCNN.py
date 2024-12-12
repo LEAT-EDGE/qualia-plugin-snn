@@ -19,10 +19,10 @@ from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers2d
 from .SNN import SNN
 
 if TYPE_CHECKING:
-    from types import ModuleType  # noqa: TCH003
+    from types import ModuleType  # noqa: TC003
 
     import torch
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TCH002
+    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TC002
     from qualia_core.typing import RecursiveConfigDict
 
 if sys.version_info >= (3, 12):

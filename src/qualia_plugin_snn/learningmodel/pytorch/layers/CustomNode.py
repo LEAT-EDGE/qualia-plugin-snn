@@ -15,7 +15,7 @@ from spikingjelly.activation_based.neuron import BaseNode  # type: ignore[import
 from torch import nn
 
 if TYPE_CHECKING:
-    from torch.autograd.function import FunctionCtx  # noqa: TCH002
+    from torch.autograd.function import FunctionCtx  # noqa: TC002
 
 if sys.version_info >= (3, 12):
     from typing import override

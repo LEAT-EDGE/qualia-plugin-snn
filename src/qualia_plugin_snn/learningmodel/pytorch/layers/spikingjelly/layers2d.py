@@ -9,10 +9,12 @@ from .quantized_layers2d import QuantizedBatchNorm2d as QuantizedBatchNorm
 from .quantized_layers2d import QuantizedConv2d as QuantizedConv
 from .quantized_layers2d import QuantizedMaxPool2d as QuantizedMaxPool
 
-__all__ = ['Conv',
-           'BatchNorm',
+__all__ = [
            'AvgPool',
+           'BatchNorm',
+           'Conv',
            'MaxPool',
            'QuantizedBatchNorm',
            'QuantizedConv',
-           'QuantizedMaxPool']
+           'QuantizedMaxPool',
+]

@@ -12,9 +12,9 @@ from spikingjelly.activation_based.base import StepModule  # type: ignore[import
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    import torch  # noqa: TCH002
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TCH002
-    from torch import nn  # noqa: TCH002
+    import torch  # noqa: TC002
+    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TC002
+    from torch import nn  # noqa: TC002
 
 if sys.version_info >= (3, 12):
     from typing import override

@@ -31,11 +31,11 @@ from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    from qualia_codegen_core.graph import ModelGraph  # noqa: TCH002
-    from qualia_codegen_core.graph.layers import TAddLayer, TBaseLayer, TConvLayer, TDenseLayer  # noqa: TCH002
-    from qualia_core.datamodel.RawDataModel import RawData  # noqa: TCH002
-    from qualia_core.qualia import TrainResult  # noqa: TCH002
-    from torch.types import Number  # noqa: TCH002
+    from qualia_codegen_core.graph import ModelGraph  # noqa: TC002
+    from qualia_codegen_core.graph.layers import TAddLayer, TBaseLayer, TConvLayer, TDenseLayer  # noqa: TC002
+    from qualia_core.datamodel.RawDataModel import RawData  # noqa: TC002
+    from qualia_core.qualia import TrainResult  # noqa: TC002
+    from torch.types import Number  # noqa: TC002
 
 if sys.version_info >= (3, 12):
     from typing import override

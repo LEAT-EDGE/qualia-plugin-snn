@@ -19,9 +19,9 @@ from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.QuantizedAdd im
 from .SNN import SNN
 
 if TYPE_CHECKING:
-    from types import ModuleType  # noqa: TCH003
+    from types import ModuleType  # noqa: TC003
 
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TCH002
+    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TC002
     from qualia_core.typing import RecursiveConfigDict
 
 if sys.version_info >= (3, 12):
@@ -184,7 +184,7 @@ class QuantizedBasicBlock(nn.Module):
 
         if self.stride != 1:
             self.smax = sjlayers_t.QuantizedMaxPool(stride, step_mode=step_mode, quant_params=quant_params)
-        if self.in_planes != self.expansion*self.planes or force_projection_with_stride and self.stride != 1:
+        if self.in_planes != self.expansion*self.planes or (force_projection_with_stride and self.stride != 1):
             self.sconv = sjlayers_t.QuantizedConv(in_planes,
                                                   self.expansion*planes,
                                                   kernel_size=1,
@@ -226,7 +226,7 @@ class QuantizedBasicBlock(nn.Module):
         # shortcut
         tmp = x
 
-        if self.in_planes != self.expansion*self.planes or self.force_projection_with_stride and self.stride != 1:
+        if self.in_planes != self.expansion*self.planes or (self.force_projection_with_stride and self.stride != 1):
             tmp = self.sconv(tmp)
 
             if self.batch_norm:
@@ -235,7 +235,7 @@ class QuantizedBasicBlock(nn.Module):
         if self.stride != 1:
             tmp = self.smax(tmp)
 
-        if self.in_planes != self.expansion*self.planes or self.force_projection_with_stride and self.stride != 1:
+        if self.in_planes != self.expansion*self.planes or (self.force_projection_with_stride and self.stride != 1):
             tmp = self.neuronr(tmp)
 
         return self.add(out, tmp)

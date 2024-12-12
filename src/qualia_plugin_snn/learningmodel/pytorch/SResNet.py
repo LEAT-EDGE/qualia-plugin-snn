@@ -18,7 +18,7 @@ from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.Add import Add
 from .SNN import SNN
 
 if TYPE_CHECKING:
-    from types import ModuleType  # noqa: TCH003
+    from types import ModuleType  # noqa: TC003
 
     from qualia_core.typing import RecursiveConfigDict
 
@@ -159,7 +159,7 @@ class BasicBlock(nn.Module):
         # residual path
         if self.stride != 1:
             self.smax = sjlayers_t.MaxPool(stride, step_mode=step_mode)
-        if self.in_planes != self.expansion*self.planes or force_projection_with_stride and self.stride != 1:
+        if self.in_planes != self.expansion*self.planes or (force_projection_with_stride and self.stride != 1):
             self.sconv = sjlayers_t.Conv(in_planes,
                                          self.expansion*planes,
                                          kernel_size=1,
@@ -196,7 +196,7 @@ class BasicBlock(nn.Module):
         # shortcut
         tmp = x
 
-        if self.in_planes != self.expansion*self.planes or self.force_projection_with_stride and self.stride != 1:
+        if self.in_planes != self.expansion*self.planes or (self.force_projection_with_stride and self.stride != 1):
             tmp = self.sconv(tmp)
 
             if self.batch_norm:
@@ -205,7 +205,7 @@ class BasicBlock(nn.Module):
         if self.stride != 1:
             tmp = self.smax(tmp)
 
-        if self.in_planes != self.expansion*self.planes or self.force_projection_with_stride and self.stride != 1:
+        if self.in_planes != self.expansion*self.planes or (self.force_projection_with_stride and self.stride != 1):
             tmp = self.neuronr(tmp)
 
         return self.add(out, tmp)
