@@ -20,7 +20,7 @@ params.task_name = 'DVSGesture_CNN_float32_Linux'
 #converter.kind = 'SPLEAT'
 #converter.params.output_feature_maps = [1, 2, 3, 4]
 target = 'Linux'
-converter.kind = 'KerasCNN2C'
+converter.kind = 'QualiaCodeGen'
 quantize = ['float32']
 optimize = ['']
 
