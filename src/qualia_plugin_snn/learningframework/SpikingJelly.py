@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import sys
 
+import spikingjelly.activation_based.base as sjb  # type: ignore[import-untyped]
+import spikingjelly.activation_based.neuron as sjn  # type: ignore[import-untyped]
 import torch
+import torch.fx
 from qualia_core.learningframework import PyTorch
 from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.activation_based import functional  # type: ignore[import-untyped]
@@ -15,6 +18,8 @@ import qualia_plugin_snn.learningmodel.pytorch
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
     from types import ModuleType  # noqa: TC003
+
+    from torch import nn
 
     from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN  # noqa: TC001
 
@@ -60,3 +65,15 @@ class SpikingJelly(PyTorch):
             x_list = [self.model(x) for _ in range(self.model.timesteps)]
 
             return torch.stack(x_list).sum(0) / self.model.timesteps
+
+    @override
+    def trace_model(self,
+                    model: nn.Module,
+                    extra_custom_layers: tuple[type[nn.Module], ...] = ()) -> tuple[torch.fx.Graph, torch.fx.GraphModule]:
+        # StepModule not a subclass of nn.Module but still required to avoid parsing sj-wrapped nn layers
+        sj_extra_custom_layers: tuple[type[nn.Module | sjb.StepModule], ...] = (
+                sjn.BaseNode,
+                sjb.StepModule,
+                )
+        return super().trace_model(model=model,
+                                   extra_custom_layers=(*extra_custom_layers, *sj_extra_custom_layers))
