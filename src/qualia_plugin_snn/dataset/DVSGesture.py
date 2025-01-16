@@ -1,41 +1,56 @@
+from __future__ import annotations
+
 import logging
 import os
+import sys
 import time
 from concurrent.futures import Future, ProcessPoolExecutor
 from multiprocessing.managers import SharedMemoryManager
 from multiprocessing.shared_memory import SharedMemory
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable
 
 import numpy as np
 import numpy.typing
 from qualia_core.datamodel import RawDataModel
-from spikingjelly.datasets import integrate_events_by_fixed_duration
-from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
+from qualia_core.datamodel.RawDataModel import RawData
+from qualia_core.dataset.RawDataset import RawDataset
+from spikingjelly.datasets import integrate_events_by_fixed_duration  # type: ignore[import-untyped]
+from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 logger = logging.getLogger(__name__)
 
 LoadFramesReturnT = tuple[tuple[str, tuple[int, ...], numpy.typing.DTypeLike], tuple[str, tuple[int, ...], numpy.typing.DTypeLike]]
 SharedMemoryArrayReturnT = tuple[str, tuple[int, ...], numpy.typing.DTypeLike]
 
-class DVSGesture:
+class DVSGesture(RawDataset):
     def __init__(self,
                  path: str='',
                  data_type: str = 'frame',
-                 duration: int = 0) -> None:
+                 duration: int = 0,
+                 timesteps: int = 0) -> None:
         super().__init__()
         self.__path = Path(path)
         self.__data_type = data_type
         self.__duration = duration
+        self.__timesteps = timesteps
+        self.sets.remove('valid')
 
     def __load_dvs128gesture(self, *, train: bool) -> DVS128Gesture:
+        self.__path.mkdir(parents=True, exist_ok=True)
+
         return DVS128Gesture(str(self.__path),
                              train=train,
                              data_type='event')
 
     def _shared_memory_array(self,
-                             data_array: Union[numpy.typing.NDArray[np.float32],
-                                               numpy.typing.NDArray[np.int32]]) -> SharedMemoryArrayReturnT:
+                             data_array: numpy.typing.NDArray[np.float32] |
+                                         numpy.typing.NDArray[np.int32]) -> SharedMemoryArrayReturnT:
         data_buffer = SharedMemory(size=data_array.nbytes, create=True)
         data_shared = np.frombuffer(data_buffer.buf, dtype=data_array.dtype).reshape(data_array.shape)
 
@@ -71,6 +86,9 @@ class DVSGesture:
                                                                                          W=w)
             data = data64.astype(np.float32)
             data = data.transpose((0, 2, 3, 1)) # N, C, H, W → N, H, W, C
+            frame_chunks: int = data.shape[0] // self.__timesteps
+            data = data[:frame_chunks * self.__timesteps] # Truncate excessive frames
+            data = data.reshape((frame_chunks, self.__timesteps, *data.shape[1:])) # N, T, H, W, C
             label: int = dvs128gesture[j][1]
             data_list.append(data)
             labels_list.append(np.full(data.shape[0], label, dtype=np.int32))
@@ -86,9 +104,9 @@ class DVSGesture:
         logger.info('Process %s finished in %s s.', i, time.time() - start)
         return data_ret, labels_ret
 
-    def __dvs128gesture_to_data(self, dvs128gesture: DVS128Gesture) -> RawDataModel.Data:
+    def __dvs128gesture_to_data(self, dvs128gesture: DVS128Gesture) -> RawData:
         samples = len(dvs128gesture)
-        cpus: Optional[int] = os.cpu_count()
+        cpus: int | None = os.cpu_count()
         total_chunks: int = cpus // 2 if cpus is not None else 2
         chunks_list = np.array_split(np.arange(samples, dtype=np.int32), total_chunks)
 
@@ -119,9 +137,9 @@ class DVSGesture:
             data = load_results(train_futures, lambda r: r[0])
             labels = load_results(train_futures, lambda r: r[1])
 
-        return RawDataModel.Data(data, labels)
+        return RawData(data, labels)
 
-    def __call__(self) -> Optional[RawDataModel]:
+    def __call__(self) -> RawDataModel | None:
         if self.__data_type != 'frame':
             logger.error('Unsupported data_type %s', self.__data_type)
             return None
@@ -129,13 +147,19 @@ class DVSGesture:
         train_dvs128gesture = self.__load_dvs128gesture(train=True)
         test_dvs128gesture = self.__load_dvs128gesture(train=False)
 
-        return RawDataModel(RawDataModel.Sets(train=self.__dvs128gesture_to_data(train_dvs128gesture),
-                                              test=self.__dvs128gesture_to_data(test_dvs128gesture)),
-                            name=self.name)
+        trainset = self.__dvs128gesture_to_data(train_dvs128gesture)
+        testset = self.__dvs128gesture_to_data(test_dvs128gesture)
 
-    def import_data(self) -> RawDataModel:
-        return RawDataModel.import_data(name=self.name)
+
+        logger.info('Shapes: train_x=%s, train_y=%s, test_x=%s, test_y=%s',
+                    trainset.x.shape if trainset.x is not None else None,
+                    trainset.y.shape if trainset.y is not None else None,
+                    testset.x.shape if testset.x is not None else None,
+                    testset.y.shape if testset.y is not None else None)
+
+        return RawDataModel(RawDataModel.Sets(train=trainset, test=testset), name=self.name)
 
     @property
+    @override
     def name(self) -> str:
-        return f'{self.__class__.__name__}_{self.__data_type}_{self.__duration}'
+        return f'{self.__class__.__name__}_{self.__data_type}_d{self.__duration}_t{self.__timesteps}'
