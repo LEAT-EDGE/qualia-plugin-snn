@@ -1,10 +1,16 @@
 """Provide the SpikingJelly single-step with timesteps in input data learningframework module."""
 
+from __future__ import annotations
+
 import logging
 import sys
+from typing import Any
 
+import numpy.typing
 import torch
 from spikingjelly.activation_based import functional  # type: ignore[import-untyped]
+
+from qualia_core.datamodel.RawDataModel import RawData
 
 from .SpikingJelly import SpikingJelly
 
@@ -36,14 +42,8 @@ class SpikingJellyTimeStepsInData(SpikingJelly):
             """
             functional.reset_net(self.model)
 
-            # Switch timestep dim from 3rd to 1st place
-            if len(x.shape) == 5: # noqa: PLR2004 2D data, [N, C, T, H, W] → [T, N, C, H, W]
-                x = x.permute(2, 0, 1, 3, 4)
-            elif len(x.shape) == 4: # noqa: PLR2004 1D data [N, C, T, S] → [T, N, C, S]
-                x = x.permute(2, 0, 1, 3)
-            else:
-                logger.error('Unsupported number of axes in dataset: %s, must be 4 or 5', len(x.shape))
-                raise ValueError
+            # Switch timestep dim from 2nd to 1st place
+            x = x.swapaxes(0, 1)
 
             input_timesteps = list(x) # Split timestep dims into multiple arrays
             if len(input_timesteps) != self.model.timesteps:
@@ -56,3 +56,30 @@ class SpikingJellyTimeStepsInData(SpikingJelly):
             x = torch.stack(x_list).sum(0)
 
             return x / len(input_timesteps)
+
+    @staticmethod
+    def channels_last_to_channels_first(x: numpy.typing.NDArray[Any]) -> numpy.typing.NDArray[Any]:
+        if len(x.shape) == 5: # N, T, H, W, C → N, T, C, H, W
+            x = x.transpose(0, 1, 4, 2, 3)
+        elif len(x.shape) == 4: # N, T, S, C → N, T, C, S
+            x = x.swapaxes(2, 3)
+        else:
+            logger.error('Unsupported number of axes in dataset: %s, must be 4 or 5', len(x.shape))
+            raise ValueError
+        return x
+
+    @staticmethod
+    def channels_first_to_channels_last(x: numpy.typing.NDArray[Any]) -> numpy.typing.NDArray[Any]:
+        if len(x.shape) == 5: # N, T, C, H, W → N, T, H, W, C
+            x = x.transpose(0, 1, 3, 4, 2)
+        elif len(x.shape) == 4: # N, T, C, S → N, T, S, C
+            x = x.swapaxes(3, 2)
+        else:
+            logger.error('Unsupported number of axes in dataset: %s, must be 4 or 5', len(x.shape))
+            raise ValueError
+        return x
+
+    class DatasetFromArray(SpikingJelly.DatasetFromArray):
+        def __init__(self, dataset: RawData) -> None:
+            self.x = SpikingJellyTimeStepsInData.channels_last_to_channels_first(dataset.x)
+            self.y = dataset.y
