@@ -10,7 +10,7 @@ import torch
 import torch.fx
 from qualia_core.learningframework import PyTorch
 from qualia_core.typing import TYPE_CHECKING
-from spikingjelly.activation_based import functional  # type: ignore[import-untyped]
+from spikingjelly.activation_based import functional
 
 import qualia_plugin_snn
 import qualia_plugin_snn.learningmodel.pytorch
