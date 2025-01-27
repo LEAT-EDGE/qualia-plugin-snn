@@ -5,10 +5,13 @@ from __future__ import annotations
 import logging
 import sys
 
-import torch
+from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.activation_based import functional  # type: ignore[import-untyped]
 
 from .SpikingJellyTimeStepsInData import SpikingJellyTimeStepsInData
+
+if TYPE_CHECKING:
+    import torch  # noqa: TC002
 
 if sys.version_info >= (3, 12):
     from typing import override
