@@ -62,6 +62,15 @@ class SpikingJellyTimeStepsInData(SpikingJelly):
     @override
     @staticmethod
     def channels_last_to_channels_first(x: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+        """Channels last to channels first conversion with consideration of timestep dimension.
+
+        For 2D data with timestep: [N, T, H, W, C] → [N, T, C, H, W]
+
+        For 1D data with timestep: [N, T, S, C] → [N, T, C, S]
+
+        :param x: NumPy array in channels last format
+        :return: NumPy array reordered to channels first format
+        """
         if len(x.shape) == 5: # N, T, H, W, C → N, T, C, H, W  # noqa: PLR2004
             x = x.transpose(0, 1, 4, 2, 3)
         elif len(x.shape) == 4: # N, T, S, C → N, T, C, S  # noqa: PLR2004
@@ -74,6 +83,15 @@ class SpikingJellyTimeStepsInData(SpikingJelly):
     @override
     @staticmethod
     def channels_first_to_channels_last(x: np.ndarray[Any, Any]) -> np.ndarray[Any, Any]:
+        """Channels first to channels last conversion with consideration of timestep dimension.
+
+        For 2D data with timestep: [N, T, C, H, W] → [N, T, H, W, C]
+
+        For 1D data with timestep: [N, T, C, S] → [N, T, S, C]
+
+        :param x: NumPy array in channels first format
+        :return: NumPy array reordered to channels last format
+        """
         if len(x.shape) == 5: # N, T, C, H, W → N, T, H, W, C  # noqa: PLR2004
             x = x.transpose(0, 1, 3, 4, 2)
         elif len(x.shape) == 4: # N, T, C, S → N, T, S, C  # noqa: PLR2004
@@ -84,6 +102,14 @@ class SpikingJellyTimeStepsInData(SpikingJelly):
         return x
 
     class DatasetFromArray(SpikingJelly.DatasetFromArray):
+        """Override :class:`qualia_core.learningframework.PyTorch.PyTorch.DatasetFromArray` to reorder data with timestep dim."""
+
         def __init__(self, dataset: RawData) -> None:
+            """Load a Qualia dataset partition as a PyTorch dataset.
+
+            Reorders the input data from channels_last to channels_first, with consideration of timestep dimension.
+
+            :param dataset: Dataset partition to load
+            """
             self.x = SpikingJellyTimeStepsInData.channels_last_to_channels_first(dataset.x)
             self.y = dataset.y
