@@ -252,6 +252,10 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param mem_width: Memory access size in bits, e.g. 16 for 16-bit quantization
         :param fifo_size: Size of the input/output FIFOs for each layer in SPLEAT
         :param total_spikerate_exclude_nonbinary: If True, exclude non-binary inputs/outputs from total spikerate computation
+        :param op_estimation_type: Optional estimation type for the energy values, one of 'ICONIP', 'saturation', 'linear',
+            'quadratic', defaults to 'ICONIP', see :meth:`_set_energy_values` and :meth:`_set_op_estimation_type`
+        :param sram_estimation_type: Optional SRAM estimation algorithm, 'old' (ICONIP2022) or 'new' (T. Louis), defaults to
+            'old', see :meth:``_e_ram`
         """
         super().__init__()
         self._mem_width = mem_width
@@ -292,7 +296,12 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         to estimate the energy values by solving a quadratic equation: y = a*bit_width^2 + b*bit_width + c.
 
         :meta public:
-        :param op_estimation_type: The estimation type for the energy values.
+        :param bit_width: Bit width to compute energy for
+        :param op_type: Operation type, e.g., 'add' or 'mul'
+        :param op_estimation_type: The estimation type for the energy values, one of 'ICONIP', 'saturation', 'linear', 'quadratic'
+        :return: Energy for the given bit width, operation and estimation type
+        :raise ValueError: When ``op_estimation_type`` is invalid,
+            or ``bit_width`` is out of bounds for 'saturation' ``op_estimation_type``
         """
         # Check for valid op_estimation_type
         if op_estimation_type not in ['ICONIP','saturation', 'linear', 'quadratic']:
@@ -359,14 +368,14 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         return energy
 
     def _set_energy_values(self, bit_width: int, op_estimation_type: dict[str, str] | None) -> None:
-        """Set the energy values for the given bit width.
+        """Set the operation energy values for the given bit width.
 
-        If bit_width is 8 or 32, set the energy values using the predefined energy values.
+        If ``op_estimation_type`` is set, use :meth:`_set_op_estimation_type` to infer the values according to the wanted bit width
+        and type.
 
-        Else if op_estimation_type is not None, check if op_estimation_type['add'] and op_estimation_type['mul'] are defined,
-        and set the energy values using the estimation type.
+        Otherwise, if ``bit_width`` is in :attr:`energy_values` use the predefined energy values in :attr:`energy_values`.
 
-        Else raise ValueError.
+        Otherwise, defaults to using predefined 32-bit values from :attr:`energy_values`.
 
         :meta public:
         :param bit_width: The bit width for the energy values.
@@ -2048,6 +2057,12 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
     def _e_ram(self, mem_params: int, bits: int) -> float:
         """Energy for a single RAM access (read or write).
+
+        If :attr:`_sram_estimation_type` is 'new', use T. Louis method with multiple data packed over a single 10pJ 64-bit access,
+        regardless of total memory size.
+
+        Otherwise, use ICONIP2022 method with a single access for each data with energy proportional to total memory size, computed
+        with a linear regression over Horowitz 2014 values of 8KiB, 32KiB and 1MiB SRAM.
 
         :meta public:
         :param mem_params: Number of element stored in this memory
