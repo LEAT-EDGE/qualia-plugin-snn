@@ -1473,10 +1473,12 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
                 if isinstance(node.layer, TConvLayer):
                     if not input_is_binary[node.layer.name]: # Non-binary dense input:
+                        # Computed as sparse input over a single timestep but with MAC operations for membrane potentials increment
                         e_mem_io = (self._e_rdin_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
-                        # MAC operations Bias is not considered here !!...
-                        e_ops = (self._e_ops_conv_fnn(node.layer) * input_spikerates[node.layer.name]
+                        e_ops = ((self._mac_ops_conv_fnn(node.layer)
+                                    * input_spikerates[node.layer.name] * (self._e_mul + self._e_add)) # Input * Weight MACs
+                                 + self._acc_ops_conv_fnn(node.layer) * self._e_add # Bias
                                  + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
                                  + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
                         e_addr = self._e_addr_conv_snn(node.layer, input_spikerates[node.layer.name])
