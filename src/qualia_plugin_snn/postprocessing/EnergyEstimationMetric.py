@@ -1510,24 +1510,29 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                        )
                 elif isinstance(node.layer, TDenseLayer):
                     if not input_is_binary[node.layer.name]: # Non-binary dense input:
-                        e_mem_io = (self._e_rdin_fc_fnn(node.layer, e_rdram) # Dense reading of inputs
+                        # Computed as sparse input over a single timestep but with MAC operations for membrane potentials increment
+                        e_mem_io = (self._e_rdin_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
-                        e_ops = (self._e_ops_fc_fnn(node.layer) # MAC operations
+                        e_ops = ((self._mac_ops_fc_fnn(node.layer)
+                                    * input_spikerates[node.layer.name] * (self._e_mul + self._e_add)) # Input * Weight MACs
+                                 + self._acc_ops_fc_fnn(node.layer) * self._e_add # Bias
                                  + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
                                  + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
-                        e_addr = self._e_addr_fc_fnn(node.layer) # Dense addressing
+                        e_addr = self._e_addr_fc_snn(node.layer, input_spikerates[node.layer.name])
+                        mem_weights = self._e_rdweights_fc_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                         is_sj = 'Hybrid'
                     else:
                         e_mem_io = (self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
                         e_ops = self._e_ops_fc_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak)
                         e_addr = self._e_addr_fc_snn(node.layer, input_spikerate)
+                        mem_weights = self._e_rdweights_fc_snn(node.layer, input_spikerate, e_rdram)
                         is_sj = True
 
                     em = EnergyMetrics(name=node.layer.name,
                                        mem_pot=self._e_wrpot_fc_snn(node.layer, input_spikerate, timesteps, e_wrram)
                                        + self._e_rdpot_fc_snn(node.layer, input_spikerate, timesteps, e_wrram),
-                                       mem_weights=self._e_rdweights_fc_snn(node.layer, input_spikerate, e_rdram),
+                                       mem_weights=mem_weights,
                                        mem_bias=self._e_rdbias_fc_snn(node.layer, timesteps, e_rdram),
                                        mem_io=e_mem_io,
                                        ops=e_ops,
