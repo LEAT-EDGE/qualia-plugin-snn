@@ -9,21 +9,18 @@ import math
 import sys
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, NamedTuple, cast
+from typing import Any, Callable, Final, Literal, NamedTuple, cast
 
 import torch
 from qualia_core.learningmodel.pytorch.layers import Add
 from qualia_core.learningmodel.pytorch.layers.GlobalSumPool1d import GlobalSumPool1d
 from qualia_core.learningmodel.pytorch.layers.GlobalSumPool2d import GlobalSumPool2d
-from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
+from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity, QuantizedLinear
 from qualia_core.learningmodel.pytorch.layers.QuantizedAdd import QuantizedAdd
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool1d import QuantizedGlobalSumPool1d
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool2d import QuantizedGlobalSumPool2d
-from qualia_core.learningmodel.pytorch.quantized_layers1d import QuantizedConv1d
-from qualia_core.learningmodel.pytorch.quantized_layers2d import QuantizedConv2d
-from qualia_core.learningmodel.pytorch.quantized_layers1d import QuantizedBatchNorm1d
-from qualia_core.learningmodel.pytorch.quantized_layers2d import QuantizedBatchNorm2d
-from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedLinear
+from qualia_core.learningmodel.pytorch.quantized_layers1d import QuantizedBatchNorm1d, QuantizedConv1d
+from qualia_core.learningmodel.pytorch.quantized_layers2d import QuantizedBatchNorm2d, QuantizedConv2d
 from qualia_core.learningmodel.pytorch.Quantizer import Quantizer
 from qualia_core.postprocessing.PostProcessing import PostProcessing
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
@@ -228,26 +225,28 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
     * :class:`spikingjelly.activation_based.neuron.LIFNode` for spiking neural networks
     """
 
-    # Predefined energy values for different bit widths
-    energy_values = {
+    energy_values: Final[dict[int, dict[str, float]]] = {
         8: {'add': 0.03, 'mul': 0.2},   # values for 8-bit
-        # from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
-        # Mark Horowitz, ISSCC 2014.
-
         32: {'add': 0.1, 'mul': 3.1},   # values for 32-bit
-        # from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
-        # Mark Horowitz, ISSCC 2014.
     }
+    """
+    Energy values for different bit widths and operations.
+
+    Default from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
+    Mark Horowitz, ISSCC 2014.
+
+    :meta public:
+    """  # noqa: RUF001
 
     #: CSV logger to record metrics for each layer in a file inside the `logs/<bench.name>/EnergyEstimationMetric` directory
-    csvlogger: CSVLogger[EnergyEstimationMetricLoggerFields]
+    csvlogger: Logger[EnergyEstimationMetricLoggerFields]
 
     def __init__(self,
                  mem_width: int,
                  fifo_size: int = 0,
-                 total_spikerate_exclude_nonbinary: bool = True,
-                 op_estimation_type: None = None,
-                 sram_estimation_type: None = None) -> None:  # noqa: FBT001, FBT002
+                 total_spikerate_exclude_nonbinary: bool = True,  # noqa: FBT001, FBT002
+                 op_estimation_type: dict[str, str] | None = None,
+                 sram_estimation_type: str | None = None) -> None:
         """Construct :class:`qualia_plugin_snn.postprocessing.EnergyEstimationMetric.EnergyEstimationMetric`.
 
         :param mem_width: Memory access size in bits, e.g. 16 for 16-bit quantization
@@ -260,8 +259,6 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         self._total_spikerate_exclude_nonbinary = total_spikerate_exclude_nonbinary
         self._set_energy_values(mem_width, op_estimation_type)
         self._sram_estimation_type = sram_estimation_type
-            
-
 
         # Initialize CSV suffix with the memory width, self_m_e_add, self_m_e_mul, op_estimation_type and sram_estimation_type
         # without "{", "}", ":", ",", "'" or " " characters
@@ -274,50 +271,50 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             suffix += f'_sram{sram_estimation_type}'
         else:
             suffix += '_sramICONIP'
-        suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(" ", '')
-        self.csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix+".csv", formatter=CSVFormatter())
+        suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(' ', '')
+        self.csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix + '.csv', formatter=CSVFormatter())
         self.csvlogger.fields = EnergyEstimationMetricLoggerFields
 
-    def _set_op_estimation_type(self, bit_width: int, type: str, op_estimation_type: str | int) -> float:
-        """
-        Set the estimation type for the energy values.
+    def _set_op_estimation_type(self, bit_width: int, op_type: str, op_estimation_type: str | int) -> float:
+        """Set the estimation type for the energy values.
 
         If op_estimation_type is not in ['ICONIP', 'saturation', 'linear', 'quadratic'], raise ValueError.
 
         If op_estimation_type is ''ICONIP', use the energy values from the ICONIP 2022 paper (i.e. 32-bit values).
 
-        If op_estimation_type is 'saturation', use self.energy_values[8][type] for 8-bit and below, and 
+        If op_estimation_type is 'saturation', use self.energy_values[8][type] for 8-bit and below, and
         self.energy_values[32][type] for bit widths between 9 and 32.
 
-        If op_estimation_type is 'linear', use self.energy_values[8][type] and self.energy_values[32][type] 
+        If op_estimation_type is 'linear', use self.energy_values[8][type] and self.energy_values[32][type]
         to estimate the energy values by solving a linear equation: y = m*bit_width + c.
 
-        If op_estimation_type is 'quadratic', use self.energy_values[8][type] and self.energy_values[32][type] 
+        If op_estimation_type is 'quadratic', use self.energy_values[8][type] and self.energy_values[32][type]
         to estimate the energy values by solving a quadratic equation: y = a*bit_width^2 + b*bit_width + c.
 
+        :meta public:
         :param op_estimation_type: The estimation type for the energy values.
         """
-        
         # Check for valid op_estimation_type
         if op_estimation_type not in ['ICONIP','saturation', 'linear', 'quadratic']:
-            raise ValueError("Invalid op_estimation_type. Must be one of ['ICONIP','saturation', 'linear', 'quadratic']")
+            logger.error("Invalid op_estimation_type. Must be one of ['ICONIP','saturation', 'linear', 'quadratic']")
+            raise ValueError
 
         # Get the 8-bit and 32-bit energy values for the given type
-        energy_8bit = self.energy_values[8][type]
-        energy_32bit = self.energy_values[32][type]
+        energy_8bit = self.energy_values[8][op_type]
+        energy_32bit = self.energy_values[32][op_type]
 
         if op_estimation_type == 'ICONIP':
             # For ICONIP, return the 32-bit value for bit_width <= 32
             energy = energy_32bit
 
         elif op_estimation_type == 'saturation':
-            # For saturation, return the 8-bit value for bit_width <= 8, otherwise the 32-bit value
-            if bit_width <= 8:
-                energy = energy_8bit
-            elif 9 <= bit_width <= 32:
-                energy = energy_32bit
-            else:
-                raise ValueError("Bit width out of supported range (1-32) for saturation estimation.")
+            # For saturation, return value for the next closest bitwidth
+            for target_bitwidth, energy in self.energy_values.items():
+                if bit_width <= target_bitwidth:
+                    return energy[op_type]
+
+            logger.error('Bit width out of supported range (1-32) for saturation estimation.')
+            raise ValueError
 
         elif op_estimation_type == 'linear':
             # For linear, solve the equation y = m*bit_width + c
@@ -340,29 +337,29 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
             # We need a third point to solve a quadratic equation. We assume (bit_width=0, energy=0) as a reference point.
             x0, y0 = 0, 0  # This assumes no energy consumption at 0 bits (can be modified if you have another reference)
-            
+
             import numpy as np
-            # Solve the system of equations to find a, b, and c
-            A = np.array([
+            # Solve the system of equations for m_a * (a, b, c) = m_b to find a, b, and c
+            m_a = np.array([
                 [x0**2, x0, 1],
                 [x1**2, x1, 1],
-                [x2**2, x2, 1]
-            ])
-            B = np.array([y0, y1, y2])
+                [x2**2, x2, 1],
+            ], dtype=np.float32)
+            m_b = np.array([y0, y1, y2], dtype=np.float32)
 
             # Solve for [a, b, c]
-            a, b, c = np.linalg.solve(A, B)
+            a, b, c = np.linalg.solve(m_a, m_b)
 
             # Estimate energy for the given bit_width using quadratic equation
             energy = a * bit_width**2 + b * bit_width + c
         else:
-            raise ValueError("Invalid op_estimation_type. Must be one of ['ICONIP', 'saturation', 'linear', 'quadratic']")    
+            logger.error("Invalid op_estimation_type. Must be one of ['ICONIP', 'saturation', 'linear', 'quadratic']")
+            raise ValueError
+
         return energy
 
-    
-    def _set_energy_values(self, bit_width: int, op_estimation_type : None) -> None:
-        """
-        Set the energy values for the given bit width.
+    def _set_energy_values(self, bit_width: int, op_estimation_type: dict[str, str] | None) -> None:
+        """Set the energy values for the given bit width.
 
         If bit_width is 8 or 32, set the energy values using the predefined energy values.
 
@@ -371,26 +368,27 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         Else raise ValueError.
 
+        :meta public:
         :param bit_width: The bit width for the energy values.
         :param op_estimation_type: The estimation type for the energy values.
         """
-
         if bit_width in self.energy_values and op_estimation_type is None:
             self._m_e_add = self.energy_values[bit_width]['add']
             self._m_e_mul = self.energy_values[bit_width]['mul']
-            print(f'Using {bit_width}-bit energy values from predefined values in Mark Horowitz, ISSCC 2014')
+            logger.info('Using %s-bit energy values from predefined values in Mark Horowitz, ISSCC 2014', bit_width)
         elif op_estimation_type is not None:
             if 'add' in op_estimation_type and 'mul' in op_estimation_type:
                 self._m_e_add = self._set_op_estimation_type(bit_width, 'add', op_estimation_type['add'])
                 self._m_e_mul = self._set_op_estimation_type(bit_width, 'mul', op_estimation_type['mul'])
-                print(f'Using {bit_width}-bit energy values estimated using {op_estimation_type}.')
+                logger.info('Using %s-bit energy values estimated using %s.', bit_width, op_estimation_type)
             else:
-                raise ValueError("op_estimation_type must contain 'add' and 'mul' keys.")
+                logger.error("op_estimation_type must contain 'add' and 'mul' keys.")
+                raise ValueError
         else:
             self._m_e_add = self.energy_values[32]['add']
             self._m_e_mul = self.energy_values[32]['mul']
-        
-            
+
+
     #######
     # FNN #
     #######
@@ -824,7 +822,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param e_wrram: Function to computer memory write energy for a given memory size
         :return: A list of EnergyMetrics for each layer and a total with fields populated with energy estimation
         """
-        from qualia_codegen_core.graph.layers import TConvLayer, TDenseLayer, TAddLayer, TFlattenLayer
+        from qualia_codegen_core.graph.layers import TAddLayer, TConvLayer, TDenseLayer, TFlattenLayer
 
         ems: list[EnergyMetrics] = []
         for node in modelgraph.nodes:
@@ -1468,7 +1466,8 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                     if not input_is_binary[node.layer.name]: # Non-binary dense input:
                         e_mem_io = (self._e_rdin_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
-                        e_ops = (self._e_ops_conv_fnn(node.layer) * input_spikerates[node.layer.name] # MAC operations Bias is not considered here !!... 
+                        # MAC operations Bias is not considered here !!...
+                        e_ops = (self._e_ops_conv_fnn(node.layer) * input_spikerates[node.layer.name]
                                  + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
                                  + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
                         e_addr = self._e_addr_conv_snn(node.layer, input_spikerates[node.layer.name])
@@ -2047,36 +2046,28 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         return trainresult, model_conf
 
-    #def _e_ram(self, mem_params: int) -> float:
-    #    """Linear interpolation with {(65536, 10), (262144, 20), (8388608, 100)} point set (B, pJ) using least-squares methods.
-
     def _e_ram(self, mem_params: int, bits: int) -> float:
-        """From Computation_cost_metric.ipynb 45nm SRAM.
+        """Energy for a single RAM access (read or write).
 
         :meta public:
         :param mem_params: Number of element stored in this memory
         :param bits: Data width in bits
         :return: Energy for a single read or write access in this memory
         """
-        
-        # Case where we use 32KB SRAM blocks with a 64-bit data bus
-        if self._sram_estimation_type is not None and self._sram_estimation_type == 'new':
+        # Case where we use 8KiB SRAM blocks with a 64-bit data bus
+        if self._sram_estimation_type == 'new':
             # Data bus width (64 bits)
             bus_width = 64
-            
-            # Energy consumption per access (10 pJ for 8KB/65536 bits SRAM blocks)
+
+            # Energy consumption per access (10 pJ for 8KiB/65536 bits SRAM blocks)
             conso_per_bus_pj = 10
 
             # cost for one access
-            cost_per_single_value_access = conso_per_bus_pj / (bus_width//bits)
+            return conso_per_bus_pj / (bus_width // bits)
 
-
-            return cost_per_single_value_access
-        
-        # Default case
-        else:
-            # Simple linear formula
-            return 1.09 * 10**(-5) * mem_params * bits + 13.2
+        # Simple linear formula
+        # From Computation_cost_metric.ipynb 45nm SRAM.
+        return 1.09 * 10**(-5) * mem_params * bits + 13.2
 
     @property
     def _e_add(self) -> float:
