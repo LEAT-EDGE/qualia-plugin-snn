@@ -9,15 +9,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import numpy.typing
-from qualia_core.dataset.RawDataset import RawDataset
-from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]
 
-from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataModel
+from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataModel, EventDataSets
 
-if TYPE_CHECKING:
-    from qualia_core.datamodel import RawDataModel  # noqa: TC002
+from .EventDataset import EventDataset
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -26,10 +22,7 @@ else:
 
 logger = logging.getLogger(__name__)
 
-LoadFramesReturnT = tuple[tuple[str, tuple[int, ...], numpy.typing.DTypeLike], tuple[str, tuple[int, ...], numpy.typing.DTypeLike]]
-SharedMemoryArrayReturnT = tuple[str, tuple[int, ...], numpy.typing.DTypeLike]
-
-class DVSGesture(RawDataset):
+class DVSGesture(EventDataset):
     """DVS128 Gesture event-based data loading based on SpikingJelly."""
 
     def __init__(self,
@@ -45,7 +38,7 @@ class DVSGesture(RawDataset):
         self.__data_type = data_type
         self.sets.remove('valid')
 
-    def _load_dvs128gesture(self, *, train: bool) -> DVS128Gesture:
+    def __load_dvs128gesture(self, *, train: bool) -> DVS128Gesture:
         """Call SpikingJelly loader implementation for DVS128 Gesture.
 
         :param train: Load train data if ``True``, otherwise load test data
@@ -101,7 +94,7 @@ class DVSGesture(RawDataset):
         return EventData(data, labels_array, info=sample_indices)
 
     @override
-    def __call__(self) -> RawDataModel:
+    def __call__(self) -> EventDataModel:
         """Load DVS128 Gesture data as events.
 
         :return: Data model structure with train and test sets containing events and labels
@@ -110,8 +103,8 @@ class DVSGesture(RawDataset):
             logger.error('Unsupported data_type %s', self.__data_type)
             raise ValueError
 
-        train_dvs128gesture = self._load_dvs128gesture(train=True)
-        test_dvs128gesture = self._load_dvs128gesture(train=False)
+        train_dvs128gesture = self.__load_dvs128gesture(train=True)
+        test_dvs128gesture = self.__load_dvs128gesture(train=False)
 
         trainset = self.__dvs128gesture_to_event_data(train_dvs128gesture)
         testset = self.__dvs128gesture_to_event_data(test_dvs128gesture)
@@ -123,7 +116,7 @@ class DVSGesture(RawDataset):
                     testset.x.shape if testset.x is not None else None,
                     testset.y.shape if testset.y is not None else None)
 
-        return EventDataModel(EventDataModel.Sets(train=trainset, test=testset),
+        return EventDataModel(EventDataSets(train=trainset, test=testset),
                               name=self.name,
                               h=128,
                               w=128)

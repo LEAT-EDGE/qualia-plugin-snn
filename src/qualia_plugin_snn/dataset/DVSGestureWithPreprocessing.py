@@ -9,19 +9,16 @@ import time
 from concurrent.futures import Future, ProcessPoolExecutor
 from multiprocessing.managers import SharedMemoryManager
 from multiprocessing.shared_memory import SharedMemory
+from pathlib import Path
 from typing import Callable
 
 import numpy as np
 import numpy.typing
 from qualia_core.datamodel import RawDataModel
 from qualia_core.datamodel.RawDataModel import RawData
-from qualia_core.typing import TYPE_CHECKING
+from qualia_core.dataset.RawDataset import RawDataset
 from spikingjelly.datasets import integrate_events_by_fixed_duration  # type: ignore[import-untyped]
-
-from .DVSGesture import DVSGesture
-
-if TYPE_CHECKING:
-    from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]  # noqa: TC002
+from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -33,7 +30,7 @@ logger = logging.getLogger(__name__)
 LoadFramesReturnT = tuple[tuple[str, tuple[int, ...], numpy.typing.DTypeLike], tuple[str, tuple[int, ...], numpy.typing.DTypeLike]]
 SharedMemoryArrayReturnT = tuple[str, tuple[int, ...], numpy.typing.DTypeLike]
 
-class DVSGestureWithPreprocessing(DVSGesture):
+class DVSGestureWithPreprocessing(RawDataset):
     """DVS128 Gesture event-based data loading based on SpikingJelly including preprocessing to frames and timesteps."""
 
     def __init__(self,
@@ -48,11 +45,22 @@ class DVSGestureWithPreprocessing(DVSGesture):
         :param duration: Frame integration duration
         :param timesteps: Number of timesteps to groupe frames by
         """
-        super().__init__(path=path)
+        self.__path = Path(path)
         self.__data_type = data_type
         self.__duration = duration
         self.__timesteps = timesteps
-        # valid dataset is already removed in parent class
+        self.sets.remove('valid')
+
+    def __load_dvs128gesture(self, *, train: bool) -> DVS128Gesture:
+        """Call SpikingJelly loader implementation for DVS128 Gesture.
+
+        :param train: Load train data if ``True``, otherwise load test data
+        """
+        self.__path.mkdir(parents=True, exist_ok=True)
+
+        return DVS128Gesture(str(self.__path),
+                             train=train,
+                             data_type='event')
 
     def _shared_memory_array(self,
                              data_array: numpy.typing.NDArray[np.float32] |
@@ -167,8 +175,8 @@ class DVSGestureWithPreprocessing(DVSGesture):
             logger.error('Unsupported data_type %s', self.__data_type)
             raise ValueError
 
-        train_dvs128gesture = self._load_dvs128gesture(train=True)
-        test_dvs128gesture = self._load_dvs128gesture(train=False)
+        train_dvs128gesture = self.__load_dvs128gesture(train=True)
+        test_dvs128gesture = self.__load_dvs128gesture(train=False)
 
         trainset = self.__dvs128gesture_to_data(train_dvs128gesture)
         testset = self.__dvs128gesture_to_data(test_dvs128gesture)
