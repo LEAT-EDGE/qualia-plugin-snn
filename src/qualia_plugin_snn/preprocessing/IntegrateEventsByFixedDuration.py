@@ -60,7 +60,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
         frames_num = int(np.ceil(events.t[-1] / self.__duration))
         frames = np.zeros([frames_num, 2, h, w], dtype=np.float32)
         frame_index = events.t // self.__duration
-        left = 0
+        left = np.intp(0)
 
         reduced_labels: np.ndarray[Any, Any] = np.ndarray((frames_num,), dtype=labels.dtype)
 
