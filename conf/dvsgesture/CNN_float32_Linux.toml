@@ -26,9 +26,19 @@ optimize = ['']
 
 [dataset]
 kind = 'DVSGesture'
-params.path = "data/DvsGesture/"
+#kind = 'DVSGestureWithPreprocessing'
+params.path = "data/DVS128Gesture/"
 params.data_type = 'frame'
-params.duration = 50000
+#params.duration = 100000
+#params.timesteps = 8
+
+[[preprocessing]]
+kind = "IntegrateEventsByFixedDuration"
+params.duration = 100000
+
+[[preprocessing]]
+kind = "Group2TimeStepsBySample"
+params.timesteps = 8
 
 [[preprocessing]]
 kind = "Class2BinMatrix"

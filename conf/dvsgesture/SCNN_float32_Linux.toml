@@ -8,6 +8,7 @@ plugins = ['qualia_plugin_snn']
 
 [learningframework]
 kind = 'SpikingJellyMultiStepTimeStepsInData'
+params.devices=[1]
 
 [experimenttracking]
 kind = 'ClearML'
@@ -25,9 +26,18 @@ optimize = ['']
 
 [dataset]
 kind = 'DVSGesture'
-params.path = "data/DvsGesture/"
+#kind = 'DVSGestureWithPreprocessing'
+params.path = "data/DVS128Gesture/"
 params.data_type = 'frame'
+#params.duration = 100000
+#params.timesteps = 8
+
+[[preprocessing]]
+kind = "IntegrateEventsByFixedDuration"
 params.duration = 100000
+
+[[preprocessing]]
+kind = "Group2TimeStepsBySample"
 params.timesteps = 8
 
 [[preprocessing]]
@@ -35,25 +45,25 @@ kind = "Class2BinMatrix"
 
 [model_template]
 kind = 'SCNN'
-epochs = 30
-batch_size = 64
+epochs = 120
+batch_size = 256
 params.input_shape = [128, 128, 2]
 
 [model_template.optimizer]
 kind = "Adam"
-params.lr               = 0.005
+params.lr               = 0.01
 params.weight_decay	= 5e-4
 
 [model_template.optimizer.scheduler]
 kind = "MultiStepLR"
-params.milestones	= [10, 20, 25]
-params.gamma		= 0.1
+params.milestones	= [15, 30, 60, 90, 110, 115]
+params.gamma		= 0.25
 
 [[model]]
 name = 'dvsgesture_scnn'
 params.dims = 2
 #params.filters = [24, 32, 48, 64]
-params.filters = [4, 8, 16, 32, 64, 128, 256]
+params.filters = [16, 32, 64, 128, 128, 256, 256]
 params.kernel_sizes = [7, 3, 3, 3, 3, 3, 3]
 params.pool_sizes = [0, 0, 0, 0, 0, 0, 0]
 params.dropouts = [0, 0, 0, 0, 0, 0, 0]
