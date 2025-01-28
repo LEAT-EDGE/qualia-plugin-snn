@@ -318,9 +318,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         elif op_estimation_type == 'saturation':
             # For saturation, return value for the next closest bitwidth
-            for target_bitwidth, energy in self.energy_values.items():
+            for target_bitwidth, energy_value in self.energy_values.items():
                 if bit_width <= target_bitwidth:
-                    return energy[op_type]
+                    return energy_value[op_type]
 
             logger.error('Bit width out of supported range (1-32) for saturation estimation.')
             raise ValueError
