@@ -85,14 +85,14 @@ class Group2TimeStepsBySample(Preprocessing[RawDataModel, RawDataModel]):
             labels_array = np.concatenate(labels_list)
             info_array = np.rec.array(info_list, dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
 
+            logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
+                        name, data_array.shape,
+                        name, labels_array.shape,
+                        name, info_array.shape)
+
             s.x = data_array
             s.y = labels_array
             s.info = info_array
-
-            logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
-                        name, s.x.shape,
-                        name, s.y.shape,
-                        name, s.info.shape)
 
         logger.info('Grouping to timesteps finished in %s s.', time.time() - start)
         return datamodel

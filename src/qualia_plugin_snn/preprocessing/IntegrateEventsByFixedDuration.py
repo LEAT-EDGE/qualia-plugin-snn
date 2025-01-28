@@ -133,14 +133,14 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
             labels_array = np.concatenate(labels_list)
             info_array = np.rec.array(info_list, dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
 
+            logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
+                        name, data_array.shape,
+                        name, labels_array.shape,
+                        name, info_array.shape)
+
             sets[name] = RawData(x=data_array,
                                  y=labels_array,
                                  info=info_array)
-
-            logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
-                        name, sets[name].x.shape,
-                        name, sets[name].y.shape,
-                        name, sets[name].info.shape)
 
         logger.info('Event integration finished in %s s.', time.time() - start)
         return RawDataModel(sets=RawDataSets(**sets), name=datamodel.name)
