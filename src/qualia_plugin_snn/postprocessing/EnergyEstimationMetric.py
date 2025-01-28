@@ -9,24 +9,28 @@ import math
 import sys
 from collections.abc import Generator
 from dataclasses import dataclass
-from typing import Any, Callable, Literal, NamedTuple, cast
+from typing import Any, Callable, Final, Literal, NamedTuple, cast
 
 import torch
 from qualia_core.learningmodel.pytorch.layers import Add
 from qualia_core.learningmodel.pytorch.layers.GlobalSumPool1d import GlobalSumPool1d
 from qualia_core.learningmodel.pytorch.layers.GlobalSumPool2d import GlobalSumPool2d
-from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
+from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity, QuantizedLinear
 from qualia_core.learningmodel.pytorch.layers.QuantizedAdd import QuantizedAdd
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool1d import QuantizedGlobalSumPool1d
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool2d import QuantizedGlobalSumPool2d
+from qualia_core.learningmodel.pytorch.quantized_layers1d import QuantizedBatchNorm1d, QuantizedConv1d
+from qualia_core.learningmodel.pytorch.quantized_layers2d import QuantizedBatchNorm2d, QuantizedConv2d
 from qualia_core.learningmodel.pytorch.Quantizer import Quantizer
 from qualia_core.postprocessing.PostProcessing import PostProcessing
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
-from qualia_core.utils.logger import CSVLogger
+from qualia_core.utils.logger import Logger
+from qualia_core.utils.logger.CSVFormatter import CSVFormatter
 from torch import nn
 
 from qualia_plugin_snn.learningframework.SpikingJelly import SpikingJelly
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.Add import Add as SNNAdd
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.QuantizedAdd import QuantizedAdd as SNNQuantizedAdd
 from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
@@ -221,17 +225,12 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
     * :class:`spikingjelly.activation_based.neuron.LIFNode` for spiking neural networks
     """
 
-    _m_e_add: float = 0.1
-    """Energy for add operation in pJ, 45nm int32.
-
-    Default from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
-    Mark Horowitz, ISSCC 2014.
-
-    :meta public:
-    """  # noqa: RUF001
-
-    _m_e_mul: float = 3.1
-    """Energy for mul operation in pJ, 45nm int32.
+    energy_values: Final[dict[int, dict[str, float]]] = {
+        8: {'add': 0.03, 'mul': 0.2},   # values for 8-bit
+        32: {'add': 0.1, 'mul': 3.1},   # values for 32-bit
+    }
+    """
+    Energy values for different bit widths and operations.
 
     Default from `Computing’s Energy Problem (and what we can do about it) <https://gwern.net/doc/cs/hardware/2014-horowitz-2.pdf>`_,
     Mark Horowitz, ISSCC 2014.
@@ -240,25 +239,164 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
     """  # noqa: RUF001
 
     #: CSV logger to record metrics for each layer in a file inside the `logs/<bench.name>/EnergyEstimationMetric` directory
-    csvlogger: CSVLogger[EnergyEstimationMetricLoggerFields]
+    csvlogger: Logger[EnergyEstimationMetricLoggerFields]
 
     def __init__(self,
                  mem_width: int,
                  fifo_size: int = 0,
-                 total_spikerate_exclude_nonbinary: bool = True) -> None:  # noqa: FBT001, FBT002
+                 total_spikerate_exclude_nonbinary: bool = True,  # noqa: FBT001, FBT002
+                 op_estimation_type: dict[str, str] | None = None,
+                 sram_estimation_type: str | None = None) -> None:
         """Construct :class:`qualia_plugin_snn.postprocessing.EnergyEstimationMetric.EnergyEstimationMetric`.
 
         :param mem_width: Memory access size in bits, e.g. 16 for 16-bit quantization
         :param fifo_size: Size of the input/output FIFOs for each layer in SPLEAT
         :param total_spikerate_exclude_nonbinary: If True, exclude non-binary inputs/outputs from total spikerate computation
+        :param op_estimation_type: Optional estimation type for the energy values, one of 'ICONIP', 'saturation', 'linear',
+            'quadratic', defaults to 'ICONIP', see :meth:`_set_energy_values` and :meth:`_set_op_estimation_type`
+        :param sram_estimation_type: Optional SRAM estimation algorithm, 'old' (ICONIP2022) or 'new' (T. Louis), defaults to
+            'old', see :meth:``_e_ram`
         """
         super().__init__()
         self._mem_width = mem_width
         self._fifo_size = fifo_size
         self._total_spikerate_exclude_nonbinary = total_spikerate_exclude_nonbinary
+        self._set_energy_values(mem_width, op_estimation_type)
+        self._sram_estimation_type = sram_estimation_type
 
-        self.csvlogger = CSVLogger(name='EnergyEstimationMetric')
+        # Initialize CSV suffix with the memory width, self_m_e_add, self_m_e_mul, op_estimation_type and sram_estimation_type
+        # without "{", "}", ":", ",", "'" or " " characters
+        suffix = f'mem{mem_width}bit_{self._m_e_add}_{self._m_e_mul}'
+        if op_estimation_type is not None:
+            suffix += f'_{op_estimation_type}'
+        else:
+            suffix += '_ICONIP'
+        if sram_estimation_type is not None:
+            suffix += f'_sram{sram_estimation_type}'
+        else:
+            suffix += '_sramICONIP'
+        suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(' ', '')
+        self.csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix + '.csv', formatter=CSVFormatter())
         self.csvlogger.fields = EnergyEstimationMetricLoggerFields
+
+    def _set_op_estimation_type(self, bit_width: int, op_type: str, op_estimation_type: str | int) -> float:
+        """Set the estimation type for the energy values.
+
+        If op_estimation_type is not in ['ICONIP', 'saturation', 'linear', 'quadratic'], raise ValueError.
+
+        If op_estimation_type is ''ICONIP', use the energy values from the ICONIP 2022 paper (i.e. 32-bit values).
+
+        If op_estimation_type is 'saturation', use self.energy_values[8][type] for 8-bit and below, and
+        self.energy_values[32][type] for bit widths between 9 and 32.
+
+        If op_estimation_type is 'linear', use self.energy_values[8][type] and self.energy_values[32][type]
+        to estimate the energy values by solving a linear equation: y = m*bit_width + c.
+
+        If op_estimation_type is 'quadratic', use self.energy_values[8][type] and self.energy_values[32][type]
+        to estimate the energy values by solving a quadratic equation: y = a*bit_width^2 + b*bit_width + c.
+
+        :meta public:
+        :param bit_width: Bit width to compute energy for
+        :param op_type: Operation type, e.g., 'add' or 'mul'
+        :param op_estimation_type: The estimation type for the energy values, one of 'ICONIP', 'saturation', 'linear', 'quadratic'
+        :return: Energy for the given bit width, operation and estimation type
+        :raise ValueError: When ``op_estimation_type`` is invalid,
+            or ``bit_width`` is out of bounds for 'saturation' ``op_estimation_type``
+        """
+        # Check for valid op_estimation_type
+        if op_estimation_type not in ['ICONIP','saturation', 'linear', 'quadratic']:
+            logger.error("Invalid op_estimation_type. Must be one of ['ICONIP','saturation', 'linear', 'quadratic']")
+            raise ValueError
+
+        # Get the 8-bit and 32-bit energy values for the given type
+        energy_8bit = self.energy_values[8][op_type]
+        energy_32bit = self.energy_values[32][op_type]
+
+        if op_estimation_type == 'ICONIP':
+            # For ICONIP, return the 32-bit value for bit_width <= 32
+            energy = energy_32bit
+
+        elif op_estimation_type == 'saturation':
+            # For saturation, return value for the next closest bitwidth
+            for target_bitwidth, energy_value in self.energy_values.items():
+                if bit_width <= target_bitwidth:
+                    return energy_value[op_type]
+
+            logger.error('Bit width out of supported range (1-32) for saturation estimation.')
+            raise ValueError
+
+        elif op_estimation_type == 'linear':
+            # For linear, solve the equation y = m*bit_width + c
+            # Use (x1, y1) = (8, energy_8bit) and (x2, y2) = (32, energy_32bit) to find m and c
+            x1, y1 = 8, energy_8bit
+            x2, y2 = 32, energy_32bit
+
+            # Solve for slope (m) and intercept (c)
+            m = (y2 - y1) / (x2 - x1)
+            c = y1 - m * x1
+
+            # Estimate energy for the given bit_width
+            energy = m * bit_width + c
+
+        elif op_estimation_type == 'quadratic':
+            # For quadratic, solve the equation y = a*bit_width^2 + b*bit_width + c
+            # We assume two points (8, energy_8bit) and (32, energy_32bit), plus assume c = 0 (or another known value)
+            x1, y1 = 8, energy_8bit
+            x2, y2 = 32, energy_32bit
+
+            # We need a third point to solve a quadratic equation. We assume (bit_width=0, energy=0) as a reference point.
+            x0, y0 = 0, 0  # This assumes no energy consumption at 0 bits (can be modified if you have another reference)
+
+            import numpy as np
+            # Solve the system of equations for m_a * (a, b, c) = m_b to find a, b, and c
+            m_a = np.array([
+                [x0**2, x0, 1],
+                [x1**2, x1, 1],
+                [x2**2, x2, 1],
+            ], dtype=np.float32)
+            m_b = np.array([y0, y1, y2], dtype=np.float32)
+
+            # Solve for [a, b, c]
+            a, b, c = np.linalg.solve(m_a, m_b)
+
+            # Estimate energy for the given bit_width using quadratic equation
+            energy = a * bit_width**2 + b * bit_width + c
+        else:
+            logger.error("Invalid op_estimation_type. Must be one of ['ICONIP', 'saturation', 'linear', 'quadratic']")
+            raise ValueError
+
+        return energy
+
+    def _set_energy_values(self, bit_width: int, op_estimation_type: dict[str, str] | None) -> None:
+        """Set the operation energy values for the given bit width.
+
+        If ``op_estimation_type`` is set, use :meth:`_set_op_estimation_type` to infer the values according to the wanted bit width
+        and type.
+
+        Otherwise, if ``bit_width`` is in :attr:`energy_values` use the predefined energy values in :attr:`energy_values`.
+
+        Otherwise, defaults to using predefined 32-bit values from :attr:`energy_values`.
+
+        :meta public:
+        :param bit_width: The bit width for the energy values.
+        :param op_estimation_type: The estimation type for the energy values.
+        """
+        if bit_width in self.energy_values and op_estimation_type is None:
+            self._m_e_add = self.energy_values[bit_width]['add']
+            self._m_e_mul = self.energy_values[bit_width]['mul']
+            logger.info('Using %s-bit energy values from predefined values in Mark Horowitz, ISSCC 2014', bit_width)
+        elif op_estimation_type is not None:
+            if 'add' in op_estimation_type and 'mul' in op_estimation_type:
+                self._m_e_add = self._set_op_estimation_type(bit_width, 'add', op_estimation_type['add'])
+                self._m_e_mul = self._set_op_estimation_type(bit_width, 'mul', op_estimation_type['mul'])
+                logger.info('Using %s-bit energy values estimated using %s.', bit_width, op_estimation_type)
+            else:
+                logger.error("op_estimation_type must contain 'add' and 'mul' keys.")
+                raise ValueError
+        else:
+            self._m_e_add = self.energy_values[32]['add']
+            self._m_e_mul = self.energy_values[32]['mul']
+
 
     #######
     # FNN #
@@ -685,6 +823,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         * :class:`qualia_codegen_core.graph.layers.TConvLayer.TConvLayer`
         * :class:`qualia_codegen_core.graph.layers.TDenseLayer.TDenseLayer`
+        * :class:`qualia_codegen_core.graph.layers.TAddLayer.TAddLayer`
 
         :meta public:
         :param modelgraph: Model to computer energy on
@@ -692,11 +831,27 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param e_wrram: Function to computer memory write energy for a given memory size
         :return: A list of EnergyMetrics for each layer and a total with fields populated with energy estimation
         """
-        from qualia_codegen_core.graph.layers import TConvLayer, TDenseLayer
+        from qualia_codegen_core.graph.layers import TAddLayer, TConvLayer, TDenseLayer, TFlattenLayer
 
         ems: list[EnergyMetrics] = []
         for node in modelgraph.nodes:
-            if isinstance(node.layer, TConvLayer):
+            if isinstance(node.layer, TFlattenLayer):
+                # Flatten is assumed to not do anything for on-target inference
+                em = EnergyMetrics(name=node.layer.name,
+                                   mem_pot=0,
+                                   mem_weights=0,
+                                   mem_bias=0,
+                                   mem_io=0,
+                                   ops=0,
+                                   addr=0,
+                                   input_spikerate=None,
+                                   output_spikerate=None,
+                                   input_count=None,
+                                   output_count=None,
+                                   input_is_binary=False,
+                                   output_is_binary=False,
+                                   is_sj=False)
+            elif isinstance(node.layer, TConvLayer):
                 em = EnergyMetrics(name=node.layer.name,
                                    mem_pot=0,
                                    mem_weights=self._e_rdweights_conv_fnn(node.layer, e_rdram),
@@ -726,6 +881,24 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                    input_is_binary=False,
                                    output_is_binary=False,
                                    is_sj=False)
+            elif isinstance(node.layer, TAddLayer):
+                # Assume element-wise addition of inputs, meaning we need to read inputs and write outputs
+
+                em = EnergyMetrics(name=node.layer.name,
+                                    mem_pot=0,  # No potentials for add layer
+                                    mem_weights=0,  # No weights for add layer
+                                    mem_bias=0,  # No biases for add layer
+                                    mem_io=self._e_rdin_add_fnn(node.layer, e_rdram) + self._e_wrout_add_fnn(node.layer, e_wrram),
+                                    ops=self._e_ops_add_fnn(node.layer),
+                                    addr=self._e_addr_add_fnn(node.layer),
+                                    input_spikerate=None,
+                                    output_spikerate=None,
+                                    input_count=None,
+                                    output_count=None,
+                                    input_is_binary=False,
+                                    output_is_binary=False,
+                                    is_sj=False)
+
             else:
                 logger.warning('%s skipped, result may be inaccurate', node.layer.name)
                 continue
@@ -1300,24 +1473,29 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
                 if isinstance(node.layer, TConvLayer):
                     if not input_is_binary[node.layer.name]: # Non-binary dense input:
-                        e_mem_io = (self._e_rdin_conv_fnn(node.layer, e_rdram) # Dense reading of inputs
+                        # Computed as sparse input over a single timestep but with MAC operations for membrane potentials increment
+                        e_mem_io = (self._e_rdin_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
-                        e_ops = (self._e_ops_conv_fnn(node.layer) # MAC operations
+                        e_ops = ((self._mac_ops_conv_fnn(node.layer)
+                                    * input_spikerates[node.layer.name] * (self._e_mul + self._e_add)) # Input * Weight MACs
+                                 + self._acc_ops_conv_fnn(node.layer) * self._e_add # Bias
                                  + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
                                  + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
-                        e_addr = self._e_addr_conv_fnn(node.layer) # Dense addressing
+                        e_addr = self._e_addr_conv_snn(node.layer, input_spikerates[node.layer.name])
+                        mem_weights = self._e_rdweights_conv_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                         is_sj = 'Hybrid'
                     else:
                         e_mem_io = (self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
                         e_ops = self._e_ops_conv_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak)
                         e_addr = self._e_addr_conv_snn(node.layer, input_spikerate)
+                        mem_weights = self._e_rdweights_conv_snn(node.layer, input_spikerate, e_rdram)
                         is_sj = True
 
                     em = EnergyMetrics(name=node.layer.name,
                                        mem_pot=self._e_wrpot_conv_snn(node.layer, input_spikerate, timesteps, e_wrram)
                                        + self._e_rdpot_conv_snn(node.layer, input_spikerate, timesteps, e_rdram),
-                                       mem_weights=self._e_rdweights_conv_snn(node.layer, input_spikerate, e_rdram),
+                                       mem_weights=mem_weights,
                                        mem_bias=self._e_rdbias_conv_snn(node.layer, timesteps, e_rdram),
                                        mem_io=e_mem_io,
                                        ops=e_ops,
@@ -1332,24 +1510,29 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                        )
                 elif isinstance(node.layer, TDenseLayer):
                     if not input_is_binary[node.layer.name]: # Non-binary dense input:
-                        e_mem_io = (self._e_rdin_fc_fnn(node.layer, e_rdram) # Dense reading of inputs
+                        # Computed as sparse input over a single timestep but with MAC operations for membrane potentials increment
+                        e_mem_io = (self._e_rdin_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
-                        e_ops = (self._e_ops_fc_fnn(node.layer) # MAC operations
+                        e_ops = ((self._mac_ops_fc_fnn(node.layer)
+                                    * input_spikerates[node.layer.name] * (self._e_mul + self._e_add)) # Input * Weight MACs
+                                 + self._acc_ops_fc_fnn(node.layer) * self._e_add # Bias
                                  + (math.prod(node.layer.output_shape[0][1:]) * self._e_mul if leak else 0) # Leak
                                  + output_spikerate * math.prod(node.layer.output_shape[0][1:]) * self._e_add) # Reset
-                        e_addr = self._e_addr_fc_fnn(node.layer) # Dense addressing
+                        e_addr = self._e_addr_fc_snn(node.layer, input_spikerates[node.layer.name])
+                        mem_weights = self._e_rdweights_fc_snn(node.layer, input_spikerates[node.layer.name], e_rdram)
                         is_sj = 'Hybrid'
                     else:
                         e_mem_io = (self._e_rdin_snn(node.layer, input_spikerate, e_rdram)
                                     + self._e_wrout_snn(node.layer, output_spikerate, e_wrram))
                         e_ops = self._e_ops_fc_snn(node.layer, input_spikerate, output_spikerate, timesteps, leak)
                         e_addr = self._e_addr_fc_snn(node.layer, input_spikerate)
+                        mem_weights = self._e_rdweights_fc_snn(node.layer, input_spikerate, e_rdram)
                         is_sj = True
 
                     em = EnergyMetrics(name=node.layer.name,
                                        mem_pot=self._e_wrpot_fc_snn(node.layer, input_spikerate, timesteps, e_wrram)
                                        + self._e_rdpot_fc_snn(node.layer, input_spikerate, timesteps, e_wrram),
-                                       mem_weights=self._e_rdweights_fc_snn(node.layer, input_spikerate, e_rdram),
+                                       mem_weights=mem_weights,
                                        mem_bias=self._e_rdbias_fc_snn(node.layer, timesteps, e_rdram),
                                        mem_io=e_mem_io,
                                        ops=e_ops,
@@ -1738,9 +1921,15 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     SNNAdd:  lambda *_: (TAddLayer, []),
                                     GlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
                                     GlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
+                                    QuantizedConv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
+                                    QuantizedConv2d: TorchModelGraph.MODULE_MAPPING[nn.Conv2d],
+                                    QuantizedBatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
+                                    QuantizedBatchNorm2d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm2d],
+                                    QuantizedLinear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
 
                                     QuantizedIdentity: TorchModelGraph.MODULE_MAPPING[nn.Identity],
                                     qsjl.QuantizedLinear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
+                                    SNNQuantizedAdd:  lambda *_: (TAddLayer, []),
                                     qsjl1d.QuantizedBatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
                                     qsjl2d.QuantizedBatchNorm2d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm2d],
                                     qsjl1d.QuantizedConv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
@@ -1873,20 +2062,33 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         return trainresult, model_conf
 
-    #def _e_ram(self, mem_params: int) -> float:
-    #    """Linear interpolation with {(8192, 10), (32768, 20), (1048576, 100)} point set (B, pJ) using least-squares methods.
-    #
-    #    45nm SRAM"""
-    #    0.000082816 * mem_params + 13.2563
-
     def _e_ram(self, mem_params: int, bits: int) -> float:
-        """From Computation_cost_metric.ipynb 45nm SRAM.
+        """Energy for a single RAM access (read or write).
+
+        If :attr:`_sram_estimation_type` is 'new', use T. Louis method with multiple data packed over a single 10pJ 64-bit access,
+        regardless of total memory size.
+
+        Otherwise, use ICONIP2022 method with a single access for each data with energy proportional to total memory size, computed
+        with a linear regression over Horowitz 2014 values of 8KiB, 32KiB and 1MiB SRAM.
 
         :meta public:
         :param mem_params: Number of element stored in this memory
         :param bits: Data width in bits
         :return: Energy for a single read or write access in this memory
         """
+        # Case where we use 8KiB SRAM blocks with a 64-bit data bus
+        if self._sram_estimation_type == 'new':
+            # Data bus width (64 bits)
+            bus_width = 64
+
+            # Energy consumption per access (10 pJ for 8KiB/65536 bits SRAM blocks)
+            conso_per_bus_pj = 10
+
+            # cost for one access
+            return conso_per_bus_pj / (bus_width // bits)
+
+        # Simple linear formula
+        # From Computation_cost_metric.ipynb 45nm SRAM.
         return 1.09 * 10**(-5) * mem_params * bits + 13.2
 
     @property
