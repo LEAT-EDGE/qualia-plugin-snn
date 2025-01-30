@@ -10,9 +10,13 @@ from typing import Any
 import numpy as np
 from qualia_core.datamodel.RawDataModel import RawData, RawDataModel, RawDataSets
 from qualia_core.preprocessing.Preprocessing import Preprocessing
+from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.datasets import integrate_events_segment_to_frame  # type: ignore[import-untyped]
 
 from qualia_plugin_snn.datamodel.EventDataModel import EventDataModel
+
+if TYPE_CHECKING:
+    from qualia_core.dataset.Dataset import Dataset  # noqa: TC002
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -144,3 +148,12 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
         logger.info('Event integration finished in %s s.', time.time() - start)
         return RawDataModel(sets=RawDataSets(**sets), name=datamodel.name)
+
+    @override
+    def import_data(self, dataset: Dataset[Any]) -> Dataset[Any]:
+        def func() -> RawDataModel:
+            rdm = RawDataModel(name=dataset.name)
+            rdm.import_sets(set_names=dataset.sets)
+            return rdm
+        dataset.import_data = func  # type: ignore[method-assign]
+        return dataset

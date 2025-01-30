@@ -188,7 +188,7 @@ class DVSGestureWithPreprocessing(RawDataset):
                     testset.x.shape if testset.x is not None else None,
                     testset.y.shape if testset.y is not None else None)
 
-        return RawDataModel(RawDataModel.Sets(train=trainset, test=testset), name=self.name)
+        return RawDataModel(sets=RawDataModel.Sets(train=trainset, test=testset), name=self.name)
 
     @property
     @override

@@ -16,15 +16,20 @@ else:
 class EventDataset(Dataset[EventData]):
     """Generic superclass for event-based datasets."""
 
+    h: int
+    w: int
+
     def __init__(self) -> None:
         """Construct :class:`qualia_plugin_snn.dataset.EventDataset.EventDataset`."""
         super().__init__(sets=list(EventDataModel.Sets.fieldnames()))
 
     @override
-    def import_data(self) -> EventDataModel | None:
+    def import_data(self) -> EventDataModel:
         """Import data for event-based dataset.
 
         Relies on :meth:`qualia_plugin_snn.datamodel.EventDataModel.import_data`
         :return: Data model with imported data
         """
-        return EventDataModel.import_data(name=self.name, set_names=self.sets)
+        edm = EventDataModel(name=self.name, h=self.h, w=self.w)
+        edm.import_sets(set_names=self.sets)
+        return edm
