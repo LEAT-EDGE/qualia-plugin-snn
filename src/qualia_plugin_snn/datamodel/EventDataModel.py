@@ -36,7 +36,7 @@ class EventDataModel(DataModel[EventData]):
     #: Maximum x coordinate in data
     w: int
 
-    def __init__(self, sets: EventDataSets, name: str, h: int, w: int) -> None:
+    def __init__(self, name: str, h: int, w: int, sets: DataModel.Sets[EventData] | None = None) -> None:
         """Instantiate the event-based dataset partitions container.
 
         :param sets: Collection of dataset partitions
@@ -49,12 +49,13 @@ class EventDataModel(DataModel[EventData]):
         self.w = w
 
     @override
-    @classmethod
-    def import_data(cls,
-                    name: str,
+    def import_sets(self,
                     set_names: list[str] | None = None,
                     sets_cls: type[DataModel.Sets[EventData]] = EventDataSets,
-                    importer: Callable[[Path], EventData | None] = EventData.import_data) -> EventDataModel | None:
+                    importer: Callable[[Path], EventData | None] = EventData.import_data) -> None:
         set_names = set_names if set_names is not None else list(EventDataSets.fieldnames())
 
-        return super().import_data(name=name, set_names=set_names, sets_cls=sets_cls, importer=importer)
+        sets_dict = self._import_data_sets(name=self.name, set_names=set_names, importer=importer)
+
+        if sets_dict is not None:
+            self.sets = sets_cls(**sets_dict)

@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 class DVSGesture(EventDataset):
     """DVS128 Gesture event-based data loading based on SpikingJelly."""
 
+    h: int = 128
+    w: int = 128
+
     def __init__(self,
                  path: str='',
                  data_type: str = 'frame') -> None:
@@ -116,10 +119,10 @@ class DVSGesture(EventDataset):
                     testset.x.shape if testset.x is not None else None,
                     testset.y.shape if testset.y is not None else None)
 
-        return EventDataModel(EventDataSets(train=trainset, test=testset),
+        return EventDataModel(sets=EventDataSets(train=trainset, test=testset),
                               name=self.name,
-                              h=128,
-                              w=128)
+                              h=self.h,
+                              w=self.w)
 
     @property
     @override
