@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 import qualia_core.postprocessing
 from qualia_core.typing import TYPE_CHECKING
@@ -33,6 +33,26 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
 
     :meta hide-value:
     """
+
+    def __init__(self,
+                 quantize: str,
+                 long_width: int | None = None,
+                 outdir: str | None = None,
+                 metrics: list[str] | None = None,
+                 timestep_mode: Literal['duplicate', 'iterate'] = 'duplicate') -> None:
+        """Construct :class:`qualia_plugin_snn.postprocessing.QualiaCodeGen.QualiaCodeGen`.
+
+        See :class:`qualia_core.postprocessing.QualiaCodeGen.QualiaCodeGen` for more information.
+
+        :param quantize: Quantization data type
+        :param long_width: Long number bit width
+        :param outdir: Output directory
+        :param metrics: List of metrics to implement
+        :param timestep_mode: Input timestep handling mode, either ``'duplicate'`` to duplicate static input data over timesteps,
+            or ``'iterate'`` to iterate over existing input data timestep dimension
+        """
+        super().__init__(quantize=quantize, long_width=long_width, outdir=outdir, metrics=metrics)
+        self.__timestep_mode = timestep_mode
 
     @override
     def convert_model_to_modelgraph(self, model: nn.Module) -> ModelGraph | None:
@@ -94,5 +114,5 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         :return: String containing the single-file C code
         """
         from qualia_codegen_plugin_snn import Converter
-        converter = Converter(output_path=output_path)
+        converter = Converter(output_path=output_path, timestep_mode=self.__timestep_mode)
         return converter.convert_model(modelgraph)
