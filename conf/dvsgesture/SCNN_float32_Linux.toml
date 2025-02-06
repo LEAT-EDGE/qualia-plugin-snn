@@ -21,6 +21,7 @@ params.task_name = 'DVSGesture_SCNN_float32_Linux'
 #converter.params.output_feature_maps = [1, 2, 3, 4]
 target = 'Linux'
 converter.kind = 'QualiaCodeGen'
+converter.params.timestep_mode = 'iterate' # Required for TimeStepsInData
 quantize = ['float32']
 optimize = ['']
 
