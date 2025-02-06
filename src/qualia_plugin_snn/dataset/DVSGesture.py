@@ -63,7 +63,7 @@ class DVSGesture(EventDataset):
         t: list[np.ndarray[Any, np.dtype[np.int64]]] = []
         y: list[np.ndarray[Any, np.dtype[np.int8]]] = []
         x: list[np.ndarray[Any, np.dtype[np.int8]]] = []
-        p: list[np.ndarray[Any, np.dtype[np.bool]]] = []
+        p: list[np.ndarray[Any, np.dtype[np.bool_]]] = []
         labels: list[np.ndarray[Any, np.dtype[np.int8]]] = []
 
         # Couple of begin and end indices for each sample in concatenated array
@@ -75,7 +75,7 @@ class DVSGesture(EventDataset):
             t.append(sample[0]['t'].astype(np.int64))
             y.append(sample[0]['y'].astype(np.int8))
             x.append(sample[0]['x'].astype(np.int8))
-            p.append(sample[0]['p'].astype(np.bool))
+            p.append(sample[0]['p'].astype(np.bool_))
             labels.append(np.full(sample[0]['t'].shape[0], sample[1], dtype=np.int8))
 
             last += len(t[-1])
@@ -91,7 +91,7 @@ class DVSGesture(EventDataset):
 
 
         data = np.rec.fromarrays([t_array, y_array, x_array, p_array],
-                dtype=np.dtype([('t', np.int64), ('y', np.int8), ('x', np.int8), ('p', np.bool)]))
+                dtype=np.dtype([('t', np.int64), ('y', np.int8), ('x', np.int8), ('p', np.bool_)]))
 
         logger.info('Loading finished in %s s.', time.time() - start)
         return EventData(data, labels_array, info=sample_indices)
