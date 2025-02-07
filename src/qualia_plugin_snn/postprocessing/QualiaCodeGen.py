@@ -52,7 +52,7 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
             or ``'iterate'`` to iterate over existing input data timestep dimension
         """
         super().__init__(quantize=quantize, long_width=long_width, outdir=outdir, metrics=metrics)
-        self.__timestep_mode = timestep_mode
+        self._timestep_mode = timestep_mode
 
     @override
     def convert_model_to_modelgraph(self, model: nn.Module) -> ModelGraph | None:
@@ -114,5 +114,5 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         :return: String containing the single-file C code
         """
         from qualia_codegen_plugin_snn import Converter
-        converter = Converter(output_path=output_path, timestep_mode=self.__timestep_mode)
+        converter = Converter(output_path=output_path, timestep_mode=self._timestep_mode)
         return converter.convert_model(modelgraph)
