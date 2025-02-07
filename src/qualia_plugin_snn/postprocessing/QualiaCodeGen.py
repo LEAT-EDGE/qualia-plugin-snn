@@ -102,7 +102,7 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         return TorchModelGraph(model).convert(custom_layers=custom_layers)
 
     @override
-    def convert_modelgraph_to_c(self, modelgraph: ModelGraph, output_path: Path) -> str | None:
+    def convert_modelgraph_to_c(self, modelgraph: ModelGraph, output_path: Path) -> str | bool:
         """Generate C code for the given ModelGraph using Qualia-CodeGen.
 
         Uses the :class:`qualia_codegen_plugin_snn.Converter.Converter` from Qualia-CodeGen-Plugin-SNN in order to support Spiking
