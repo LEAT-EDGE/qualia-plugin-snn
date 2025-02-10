@@ -17,7 +17,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    'numpy < 1.24',
+    'numpy',
     'qualia-core[pytorch]',
     'torch',
     'pytorch-lightning',
