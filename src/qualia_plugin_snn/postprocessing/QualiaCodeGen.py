@@ -86,13 +86,17 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         from torch import nn
 
         custom_layers: dict[type[nn.Module], Callable[[nn.Module, TBaseLayer], tuple[type[TBaseLayer], list[Any]]]]= {
+                sjl.AvgPool1d: TorchModelGraph.MODULE_MAPPING[nn.AvgPool1d],
+                sjl.AvgPool2d: TorchModelGraph.MODULE_MAPPING[nn.AvgPool2d],
+                sjl.AdaptiveAvgPool1d: TorchModelGraph.MODULE_MAPPING[nn.AdaptiveAvgPool1d],
                 sjl.BatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
                 sjl.BatchNorm2d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm2d],
                 sjl.Conv2d: TorchModelGraph.MODULE_MAPPING[nn.Conv2d],
                 sjl.Conv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
-                sjl.Conv2d: TorchModelGraph.MODULE_MAPPING[nn.Conv2d],
                 sjl.Flatten: TorchModelGraph.MODULE_MAPPING[nn.Flatten],
                 sjl.Linear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
+                sjl.MaxPool1d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool1d],
+                sjl.MaxPool2d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool2d],
                 Add: lambda *_: (TAddLayer, []),
                 GlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
                 GlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
