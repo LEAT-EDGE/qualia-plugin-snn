@@ -826,9 +826,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         * :class:`qualia_codegen_core.graph.layers.TAddLayer.TAddLayer`
 
         :meta public:
-        :param modelgraph: Model to computer energy on
+        :param modelgraph: Model to compute energy on
         :param e_rdram: Function to compute memory read energy for a given memory size
-        :param e_wrram: Function to computer memory write energy for a given memory size
+        :param e_wrram: Function to compute memory write energy for a given memory size
         :return: A list of EnergyMetrics for each layer and a total with fields populated with energy estimation
         """
         from qualia_codegen_core.graph.layers import TAddLayer, TConvLayer, TDenseLayer, TFlattenLayer
@@ -1414,7 +1414,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         which are used by the operation count and energy computation functions.
 
         :meta public:
-        :param modelgraph: Model to computer energy on
+        :param modelgraph: Model to compute energy on
         :param input_spikerate: Dict of layer names and average spike per input per timestep for the layer
         :param output_spikerate: Dict of layer names and average spike per output per timestep for the layer
         :param input_is_binary: Dict of layer names and whether its input is binary (spike) or not
@@ -1423,7 +1423,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param output_counts: Dict of layer names and number of outputs for the layer
         :param timesteps: Number of timesteps
         :param e_rdram: Function to compute memory read energy for a given memory size
-        :param e_wrram: Function to computer memory write energy for a given memory size
+        :param e_wrram: Function to compute memory write energy for a given memory size
         :return: A list of EnergyMetrics for each layer and a total with fields populated with energy estimation
         """
         from qualia_codegen_core.graph.layers import TAddLayer, TConvLayer, TDenseLayer, TFlattenLayer, TInputLayer
@@ -1872,21 +1872,26 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                          for sc in filetered_if_outputs_spike_count_and_size.values())
         return input_total_spikerate, output_total_spikerate, input_total_count, output_total_count
 
-    @override
-    def __call__(self,  # noqa: C901, PLR0912, PLR0915
-                 trainresult: TrainResult,
-                 model_conf: ModelConfigDict) -> tuple[TrainResult, ModelConfigDict]:
-        """Compute energy estimation metric from Lemaire et al, 2022.
+    def _process_model(self,  # noqa: C901, PLR0915
+                       trainresult: TrainResult) -> tuple[ModelGraph | None,
+                                                             dict[str, float] | None,
+                                                             dict[str, float] | None,
+                                                             dict[str, bool] | None,
+                                                             dict[str, bool] | None,
+                                                             dict[str, Number] | None,
+                                                             dict[str, Number] | None,
+                                                             dict[str, bool] | None]:
+        """Process the model to generate layer graph and compute activity in case of SNN.
 
-        Uses Qualia CodeGen in order to build a :class:`qualia_codegen_core.graph.ModelGraph.ModelGraph` that is easier to parse.
-        Call either :meth:`_compute_model_energy_snn` or :meth:`_compute_model_energy_fnn` depending on whether the model is an
-        SNN or an FNN.
-        Print the resulting metrics and log them to a CSV file inside the `logs/<bench.name>/EnergyEstimationMetric` directory.
+        Use Qualia CodeGen in order to build a :class:`qualia_codegen_core.graph.ModelGraph.ModelGraph` that is easier to parse.
+
+        Execute inference pass on dataset using :meth:`_record_spike_count` to collect statistics of spike activity in case of SNN.
 
         :meta public:
         :param trainresult: TrainResult containing the SNN or FNN model, the dataset and the training configuration
-        :param model_conf: Unused
-        :return: The unmodified trainresult
+        :return: A tuple of Qualia-CodeGen's ModelGraph and various SNN metrics as dicts of layer name and associated value, in
+            order: input spike rate, output spike rate, input is binary, output is binary, input spike count, output spike count,
+            module is sj
         """
         import spikingjelly.activation_based.functional as sjf  # type: ignore[import-untyped]
         import spikingjelly.activation_based.layer as sjl  # type: ignore[import-untyped]
@@ -1951,7 +1956,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         modelgraph = TorchModelGraph(model).convert(custom_layers=custom_layers)
         if modelgraph is None:
             logger.error('Model graph conversion failed')
-            return trainresult, model_conf
+            return None, None, None, None, None, None, None, None
 
         logger.info('ModelGraph:\n%s', modelgraph)
 
@@ -1959,11 +1964,6 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             logger.info("Reverting back to original step_mode='%s'", orig_step_mode)
             sjf.set_step_mode(model, step_mode=orig_step_mode)
 
-        def e_rdram(x: int) -> float:
-            return self._e_ram(x, self._mem_width)
-        def e_wrram(x: int) -> float:
-            return self._e_ram(x, self._mem_width)
-        logger.info('Memory width set to %s bits', self._mem_width)
 
         if getattr(model, 'is_snn', False) or isinstance(model, SNN):
             if not isinstance(trainresult.framework, SpikingJelly):
@@ -2037,6 +2037,69 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                                                          timesteps=model.timesteps,
                                                                          total_exclude_nonbinary=self._total_spikerate_exclude_nonbinary)
 
+            return (modelgraph,
+                    input_spikerates,
+                    output_spikerates,
+                    input_is_binary,
+                    output_is_binary,
+                    input_counts,
+                    output_counts,
+                    is_module_sj)
+
+        return (modelgraph,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None)
+
+    @override
+    def __call__(self,
+                 trainresult: TrainResult,
+                 model_conf: ModelConfigDict) -> tuple[TrainResult, ModelConfigDict]:
+        """Compute energy estimation metric from Lemaire et al, 2022.
+
+        Uses Qualia CodeGen in order to build a :class:`qualia_codegen_core.graph.ModelGraph.ModelGraph` that is easier to parse.
+        Call either :meth:`_compute_model_energy_snn` or :meth:`_compute_model_energy_fnn` depending on whether the model is an
+        SNN or an FNN.
+        Print the resulting metrics and log them to a CSV file inside the `logs/<bench.name>/EnergyEstimationMetric` directory.
+
+        :meta public:
+        :param trainresult: TrainResult containing the SNN or FNN model, the dataset and the training configuration
+        :param model_conf: Unused
+        :return: The unmodified trainresult
+        """
+        (modelgraph,
+         input_spikerates,
+         output_spikerates,
+         input_is_binary,
+         output_is_binary,
+         input_counts,
+         output_counts,
+         is_module_sj) = self._process_model(trainresult=trainresult)
+
+        if modelgraph is None:
+            return trainresult, model_conf
+
+        def e_rdram(x: int) -> float:
+            return self._e_ram(x, self._mem_width)
+        def e_wrram(x: int) -> float:
+            return self._e_ram(x, self._mem_width)
+        logger.info('Memory width set to %s bits', self._mem_width)
+
+        if getattr(trainresult.model, 'is_snn', False) or isinstance(trainresult.model, SNN):
+            if (input_spikerates is None
+                or output_spikerates is None
+                or input_is_binary is None
+                or output_is_binary is None
+                or input_counts is None
+                or output_counts is None
+                or is_module_sj is None):
+                logger.error('SNN model detected but one of the SNN metric could not be computed')
+                raise RuntimeError
+
             ems = self._compute_model_energy_snn(modelgraph,
                                                  input_spikerates,
                                                  output_spikerates,
@@ -2045,7 +2108,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                                  input_counts,
                                                  output_counts,
                                                  is_module_sj,
-                                                 model.timesteps,
+                                                 trainresult.model.timesteps,
                                                  e_rdram,
                                                  e_wrram)
         else:
