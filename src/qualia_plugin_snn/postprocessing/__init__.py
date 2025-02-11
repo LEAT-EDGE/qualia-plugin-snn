@@ -2,6 +2,7 @@
 
 from .EnergyEstimationMetric import EnergyEstimationMetric
 from .FuseBatchNorm import FuseBatchNorm
+from .OperationCounter import OperationCounter
 from .QualiaCodeGen import QualiaCodeGen
 
-__all__ = ['EnergyEstimationMetric', 'FuseBatchNorm', 'QualiaCodeGen']
+__all__ = ['EnergyEstimationMetric', 'FuseBatchNorm', 'OperationCounter', 'QualiaCodeGen']
