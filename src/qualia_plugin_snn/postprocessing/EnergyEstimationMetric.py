@@ -686,7 +686,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         """
         return self._mac_ops_fc_fnn(layer) * (self._e_mul + self._e_add) + self._acc_ops_fc_fnn(layer) * self._e_add
 
-    def _mac_ops_add_fnn(self, layer: TAddLayer) -> int:
+    def _mac_ops_add_fnn(self, _: TAddLayer) -> int:
         """Count number of multiply-accumulate operations inside an add layer in a formal neural network.
 
         0.
@@ -695,7 +695,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         :param layer: An add layer
         :return: 0.
         """
-        return layer.input_shape[0][-1] * layer.output_shape[0][-1]
+        return 0
 
     def _acc_ops_add_fnn(self, layer: TAddLayer) -> int:
         """Count number of accumulate operations inside an add layer in a formal neural network.
