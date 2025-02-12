@@ -41,7 +41,7 @@ class SpikingJellyMultiStepTimeStepsInData(SpikingJellyTimeStepsInData):
             """
             functional.reset_net(self.model)
 
-            # Switch timestep dim from 3rd to 1st place
+            # Switch timestep dim from 3rd to 1st place, [N, C, T, H, W] → [T, N, C, H, W]
             x = x.swapaxes(0, 1)
 
             if x.shape[0] != self.model.timesteps:

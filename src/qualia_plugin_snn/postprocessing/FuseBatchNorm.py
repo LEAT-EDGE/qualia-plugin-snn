@@ -51,12 +51,12 @@ class FuseBatchNorm(FuseBatchNormQualiaCore):
             sjb.StepModule, # StepModule not a subclass of nn.Module but still required to avoid parsing sj-wrapped nn layers
             )
 
-    def __init__(self) -> None:
+    def __init__(self, evaluate: bool = True) -> None:  # noqa: FBT001, FBT002
         """Construct :class:`qualia_plugin_snn.postprocessing.FuseBatchNorm.FuseBatchNorm`.
 
         Patterns are extended to include SpikingJelly-wrapped layers.
         """
-        super().__init__()
+        super().__init__(evaluate=evaluate)
 
         self.patterns += [
                 (sjl.Conv1d, sjl.BatchNorm1d),
