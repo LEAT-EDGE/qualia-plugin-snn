@@ -44,6 +44,24 @@ params.timesteps = 8
 [[preprocessing]]
 kind = "Class2BinMatrix"
 
+[[data_augmentation]]
+kind = "ResizedCrop"
+params.size = [128, 128]
+params.scale = [0.85, 1.15]
+params.ratio = [0.85, 1.15]
+params.interpolation_mode = 'nearest'
+
+[[data_augmentation]]
+kind = "Rotation2D"
+params.angle = [-10, 10]
+params.interpolation_mode = 'nearest'
+
+[[data_augmentation]]
+kind = "ExponentialNoise"
+params.rate = 2.5
+params.round_mode = 'floor'
+
+
 [model_template]
 kind = 'SCNN'
 epochs = 120
