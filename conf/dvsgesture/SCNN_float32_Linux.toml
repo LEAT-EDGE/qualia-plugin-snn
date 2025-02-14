@@ -64,7 +64,7 @@ params.round_mode = 'floor'
 
 [model_template]
 kind = 'SCNN'
-epochs = 120
+epochs = 190
 batch_size = 256
 params.input_shape = [128, 128, 2]
 
@@ -75,7 +75,7 @@ params.weight_decay	= 5e-4
 
 [model_template.optimizer.scheduler]
 kind = "MultiStepLR"
-params.milestones	= [15, 30, 60, 90, 110, 115]
+params.milestones	= [15, 30, 80, 120, 150, 170, 180, 185]
 params.gamma		= 0.25
 
 [[model]]
