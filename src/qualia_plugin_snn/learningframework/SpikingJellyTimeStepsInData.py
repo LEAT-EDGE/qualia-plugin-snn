@@ -10,10 +10,15 @@ import torch
 from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.activation_based import functional  # type: ignore[import-untyped]
 
+from qualia_plugin_snn.dataaugmentation.pytorch.DataAugmentationPyTorchTimeStepsInData import (
+    DataAugmentationPyTorchTimeStepsInData,
+)
+
 from .SpikingJelly import SpikingJelly
 
 if TYPE_CHECKING:
     import numpy as np  # noqa: TC002
+    from qualia_core.dataaugmentation.pytorch.DataAugmentationPyTorch import DataAugmentationPyTorch  # noqa: TC002
     from qualia_core.datamodel.RawDataModel import RawData  # noqa: TC002
 
 if sys.version_info >= (3, 12):
@@ -30,6 +35,35 @@ class SpikingJellyTimeStepsInData(SpikingJelly):
         """SpikingJelly single-step with timesteps in data TrainerModule extending SpikingJelly single-step TrainerModule."""
 
         @override
+        def apply_dataaugmentation(self,
+                                   batch: tuple[torch.Tensor, torch.Tensor],
+                                   dataaugmentation: DataAugmentationPyTorch) -> tuple[torch.Tensor, torch.Tensor]:
+            """Call a dataaugmentation module on  the current batch.
+
+            If the dataaugmentation module is not a
+            :class:`qualia_plugin_snn.dataaugmentation.pytorch.DataAugmentationPyTorchTimeStepsInData`,
+            or if :attr:`qualia_plugin_snn.dataaugmentation.pytorch.DataAugmentationPyTorchTimeStepsInData.collapse_timesteps`
+            is ``True``, then the timestep dimension is automatically merged with the batch dimension in order to support
+            existing non-timestep-aware Qualia-Core dataaugmentation modules transparently.
+
+            :param batch: Current batch of data and targets
+            :param dataaugmentation: dataaugmentation module to apply
+            :return: Augmented batch
+            """
+            if isinstance(dataaugmentation, DataAugmentationPyTorchTimeStepsInData) and not dataaugmentation.collapse_timesteps:
+                return super().apply_dataaugmentation(batch, dataaugmentation)
+
+            # Reshape to merge timestep and batch dimensions
+            x, y = batch
+            shape = x.shape
+            x = x.reshape(*(shape[0] * shape[1], *shape[2:]))
+
+            x, y = super().apply_dataaugmentation((x, y), dataaugmentation)
+
+            x = x.reshape(*(shape[0], shape[1], *x.shape[1:]))
+            return x, y
+
+        @override
         def forward(self, x: torch.Tensor) -> torch.Tensor:
             """Forward pass for a Spiking Neural Network model with timesteps in input data in single-step mode.
 
@@ -37,7 +71,7 @@ class SpikingJellyTimeStepsInData(SpikingJelly):
             Call :meth:`qualia_plugin_snn.learningmodel.pytorch.SNN.SNN.forward` for each timestep of the input data.
             Finally, average the output of the model over the timesteps.
 
-            :param x: Input data with timestep dimension in [N, C, T, S] or [N, C, T, H, W] order
+            :param x: Input data with timestep dimension in [N, T, C, S] or [N, T, C, H, W] order
             :return: Output predictions
             :raise ValueError: when the input data does not have the correct number of dimenions or the timestep dimension does not
                 match :attr:`qualia_plugin_snn.learningmodel.pytorch.SNN.SNN.timesteps`

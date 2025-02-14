@@ -34,14 +34,14 @@ class SpikingJellyMultiStepTimeStepsInData(SpikingJellyTimeStepsInData):
             Call :meth:`qualia_plugin_snn.learningmodel.pytorch.SNN.SNN.forward` for each timestep of the input data.
             Finally, average the output of the model over the timesteps.
 
-            :param x: Input data with timestep dimension in [N, C, T, S] or [N, C, T, H, W] order
+            :param x: Input data with timestep dimension in [N, T, C, S] or [N, T, C, H, W] order
             :return: Output predictions
             :raise ValueError: when the input data does not have the correct number of dimenions or the timestep dimension does not
                 match :attr:`qualia_plugin_snn.learningmodel.pytorch.SNN.SNN.timesteps`
             """
             functional.reset_net(self.model)
 
-            # Switch timestep dim from 3rd to 1st place, [N, C, T, H, W] → [T, N, C, H, W]
+            # Switch timestep dim from 2nd to 1st place, [N, T, C, H, W] → [T, N, C, H, W]
             x = x.swapaxes(0, 1)
 
             if x.shape[0] != self.model.timesteps:
