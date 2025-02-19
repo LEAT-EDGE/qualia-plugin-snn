@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from qualia_core.datamodel.RawDataModel import RawData, RawDataModel, RawDataSets
@@ -43,8 +43,8 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                                                x: np.ndarray[Any, Any],
                                                p: np.ndarray[Any, Any],
                                                w: int,
-                                               j_l: int = 0,
-                                               j_r: int = -1) -> np.ndarray[Any, np.dtype[np.float32]]:
+                                               j_l: np.intp,
+                                               j_r: np.intp) -> np.ndarray[Any, np.dtype[np.float32]]:
         """Like spikingjelly.datasets.integrate_events_segment_to_frame but without y for 1D data."""
         frame = np.zeros(shape=[2, w], dtype=np.float32)
         x = x[j_l: j_r].astype(int)  # avoid overflow
@@ -65,11 +65,12 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                                            events: np.recarray[Any, Any],
                                            h: int,
                                            w: int,
-                                           left: int,
-                                           right: int) -> np.ndarray[Any, np.dtype[np.float32]]:
+                                           left: np.intp,
+                                           right: np.intp) -> np.ndarray[Any, np.dtype[np.float32]]:
         if not hasattr(events, 'y'): # No y means 1D data
             return self.__integrate_events_segment_to_frame_1d(events.x, events.p, w, left, right)
-        return integrate_events_segment_to_frame(events.x, events.y, events.p, h, w, left, right)
+        return cast(np.ndarray[Any, np.dtype[np.float32]],
+                    integrate_events_segment_to_frame(events.x, events.y, events.p, h, w, left, right))
 
 
     # Adapted from SpikingJelly
