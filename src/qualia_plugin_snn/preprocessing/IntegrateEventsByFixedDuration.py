@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 from qualia_core.datamodel.RawDataModel import RawData, RawDataModel, RawDataSets
+from qualia_core.learningframework.PyTorch import PyTorch
 from qualia_core.preprocessing.Preprocessing import Preprocessing
 from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.datasets import integrate_events_segment_to_frame  # type: ignore[import-untyped]
@@ -38,6 +39,39 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
         self.__duration = duration
 
+    def __integrate_events_segment_to_frame_1d(self,
+                                               x: np.ndarray[Any, Any],
+                                               p: np.ndarray[Any, Any],
+                                               w: int,
+                                               j_l: int = 0,
+                                               j_r: int = -1) -> np.ndarray[Any, np.dtype[np.float32]]:
+        """Like spikingjelly.datasets.integrate_events_segment_to_frame but without y for 1D data."""
+        frame = np.zeros(shape=[2, w], dtype=np.float32)
+        x = x[j_l: j_r].astype(int)  # avoid overflow
+        p = p[j_l: j_r]
+
+        mask: list[bool] = []
+        mask.append(p == 0)
+        mask.append(np.logical_not(mask[0]))
+
+        for c in range(2):
+            position = x[mask[c]]
+            events_number_per_pos = np.bincount(position)
+            frame[c][np.arange(events_number_per_pos.size)] += events_number_per_pos
+
+        return frame.reshape((2, w))
+
+    def _integrate_events_segment_to_frame(self,
+                                           events: np.recarray[Any, Any],
+                                           h: int,
+                                           w: int,
+                                           left: int,
+                                           right: int) -> np.ndarray[Any, np.dtype[np.float32]]:
+        if not hasattr(events, 'y'): # No y means 1D data
+            return self.__integrate_events_segment_to_frame_1d(events.x, events.p, w, left, right)
+        return integrate_events_segment_to_frame(events.x, events.y, events.p, h, w, left, right)
+
+
     # Adapted from SpikingJelly
     def __integrate_events_by_fixed_duration(self,
                                              events: np.recarray[Any, Any],
@@ -62,7 +96,10 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
         events.t -= events.t.min()
 
         frames_num = int(np.ceil(events.t[-1] / self.__duration))
-        frames = np.zeros([frames_num, 2, h, w], dtype=np.float32)
+        if not hasattr(events, 'y'): # 1D Data
+            frames = np.zeros([frames_num, 2, w], dtype=np.float32)
+        else:
+            frames = np.zeros([frames_num, 2, h, w], dtype=np.float32)
         frame_index = events.t // self.__duration
         left = np.intp(0)
 
@@ -70,7 +107,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
         for i in range(frames_num - 1):
             right = np.searchsorted(frame_index, i + 1, side='left')
-            frames[i] = integrate_events_segment_to_frame(events.x, events.y, events.p, h, w, left, right)
+            frames[i] = self._integrate_events_segment_to_frame(events, h, w, left, right)
 
             # Find most common label in frame
             values, counts = np.unique(labels[left:right], return_counts=True)
@@ -78,7 +115,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
             left = right
 
-        frames[-1] = integrate_events_segment_to_frame(events.x, events.y, events.p, h, w, left, n)
+        frames[-1] = self._integrate_events_segment_to_frame(events, h, w, left, n)
 
         # Find most common label in frame
         values, counts = np.unique(labels[left:n], return_counts=True)
@@ -93,8 +130,8 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
         Relies on sample indices (begin, end) from the info array to only collect events from the same sample.
 
-        Input data should be 2D event data with (t, x, y, p) columns.
-        Output data has [N, H, W, C] dimensions
+        Input data should be 2D event data with (t, x, y, p) columns or 1D event data with (t, x, p) columns.
+        Output data has [N, H, W, C] or [N, W, C] dimensions
 
         Uses SpikingJelly's implementation of :meth:`spikingjelly.datasets.integrate_events_segment_to_frame`
 
@@ -122,8 +159,8 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                         h=datamodel.h,
                         w=datamodel.w)
 
-                # channels_first to channels_last: N, C, H, W → N, H, W, C
-                data = data.transpose((0, 2, 3, 1))
+                # channels_first to channels_last: N, C, H, W → N, H, W, C or N, C, S → N, S, C
+                data = PyTorch.channels_first_to_channels_last(data)
 
                 data_list.append(data)
                 labels_list.append(labels)
