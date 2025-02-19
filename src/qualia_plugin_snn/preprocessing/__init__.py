@@ -2,6 +2,7 @@
 
 from .Group2TimeStepsBySample import Group2TimeStepsBySample
 from .IntegrateEventsByFixedDuration import IntegrateEventsByFixedDuration
+from .IntegrateEventsByFixedFramesNumber import IntegrateEventsByFixedFramesNumber
 from .Split2TimeSteps import Split2TimeSteps
 
-__all__ = ['Group2TimeStepsBySample', 'IntegrateEventsByFixedDuration', 'Split2TimeSteps']
+__all__ = ['Group2TimeStepsBySample', 'IntegrateEventsByFixedDuration', 'IntegrateEventsByFixedFramesNumber', 'Split2TimeSteps']
