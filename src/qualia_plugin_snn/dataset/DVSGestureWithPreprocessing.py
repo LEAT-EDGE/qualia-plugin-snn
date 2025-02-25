@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 import sys
 import time
 from concurrent.futures import Future, ProcessPoolExecutor
-from multiprocessing.managers import SharedMemoryManager
 from multiprocessing.shared_memory import SharedMemory
 from pathlib import Path
 from typing import Callable
@@ -17,6 +17,8 @@ import numpy.typing
 from qualia_core.datamodel import RawDataModel
 from qualia_core.datamodel.RawDataModel import RawData
 from qualia_core.dataset.RawDataset import RawDataset
+from qualia_core.utils.process.init_process import init_process
+from qualia_core.utils.process.SharedMemoryManager import SharedMemoryManager
 from spikingjelly.datasets import integrate_events_by_fixed_duration  # type: ignore[import-untyped]
 from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]
 
@@ -45,6 +47,7 @@ class DVSGestureWithPreprocessing(RawDataset):
         :param duration: Frame integration duration
         :param timesteps: Number of timesteps to groupe frames by
         """
+        super().__init__()
         self.__path = Path(path)
         self.__data_type = data_type
         self.__duration = duration
@@ -63,10 +66,11 @@ class DVSGestureWithPreprocessing(RawDataset):
                              data_type='event')
 
     def _shared_memory_array(self,
+                             smm: SharedMemoryManager,
                              data_array: numpy.typing.NDArray[np.float32] |
                                          numpy.typing.NDArray[np.int32]) -> SharedMemoryArrayReturnT:
-        data_buffer = SharedMemory(size=data_array.nbytes, create=True)
-        data_shared = np.frombuffer(data_buffer.buf, dtype=data_array.dtype).reshape(data_array.shape)
+        data_buffer = smm.SharedMemory(size=data_array.nbytes)
+        data_shared = np.frombuffer(data_buffer.buf, count=data_array.size, dtype=data_array.dtype).reshape(data_array.shape)
 
         np.copyto(data_shared, data_array)
 
@@ -79,6 +83,7 @@ class DVSGestureWithPreprocessing(RawDataset):
         return ret
 
     def _load_frames(self,
+                     smm_address: str | tuple[str, int],
                      i: int,
                      dvs128gesture: DVS128Gesture,
                      chunks: numpy.typing.NDArray[np.int32]) -> LoadFramesReturnT:
@@ -90,6 +95,9 @@ class DVSGestureWithPreprocessing(RawDataset):
         :return: Frames over timesteps and labels for selected samples
         """
         start = time.time()
+
+        smm = SharedMemoryManager(address=smm_address)
+        smm.connect()
 
         logger.info('Process %s loading frames for chunks %s...', i, chunks)
 
@@ -119,8 +127,8 @@ class DVSGestureWithPreprocessing(RawDataset):
         del data_list
         del labels_list
 
-        data_ret = self._shared_memory_array(data_array)
-        labels_ret = self._shared_memory_array(labels_array)
+        data_ret = self._shared_memory_array(smm, data_array)
+        labels_ret = self._shared_memory_array(smm, labels_array)
 
         logger.info('Process %s finished in %s s.', i, time.time() - start)
         return data_ret, labels_ret
@@ -136,8 +144,11 @@ class DVSGestureWithPreprocessing(RawDataset):
         total_chunks: int = cpus // 2 if cpus is not None else 2
         chunks_list = np.array_split(np.arange(samples, dtype=np.int32), total_chunks)
 
-        with SharedMemoryManager() as _, ProcessPoolExecutor() as executor:
-            train_futures = [executor.submit(self._load_frames, i, dvs128gesture, chunks)
+        with SharedMemoryManager() as smm, ProcessPoolExecutor(initializer=init_process) as executor:
+            if smm.address is None: # After smm is started in context, address is necessary non-None
+                raise RuntimeError
+
+            train_futures = [executor.submit(self._load_frames, smm.address, i, dvs128gesture, chunks)
                        for i, chunks in enumerate(chunks_list)]
 
             def load_results(futures: list[Future[LoadFramesReturnT]],
@@ -149,7 +160,7 @@ class DVSGestureWithPreprocessing(RawDataset):
                 dtypes = [resloader(f.result())[2] for f in futures]
                 bufs = [SharedMemory(n) for n in names]
 
-                data_list = [np.frombuffer(buf.buf, dtype=dtype).reshape(shape)
+                data_list = [np.frombuffer(buf.buf, count=math.prod(shape), dtype=dtype).reshape(shape)
                           for shape, dtype, buf in zip(shapes, dtypes, bufs)]
 
                 data_array = np.concatenate(data_list)
