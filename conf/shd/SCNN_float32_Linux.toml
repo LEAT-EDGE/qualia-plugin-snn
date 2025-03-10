@@ -8,7 +8,7 @@ plugins = ['qualia_plugin_snn']
 
 [learningframework]
 kind = 'SpikingJellyMultiStepTimeStepsInData'
-params.devices = [1]
+params.devices = 1
 
 [experimenttracking]
 kind = 'ClearML'
@@ -58,7 +58,7 @@ params.length_sigma = 0.1
 kind = 'SCNN'
 epochs = 400
 batch_size = 256
-#params.input_shape = [128, 128, 2]
+params.input_shape = [700, 2]
 params.timesteps = 6
 
 [model_template.optimizer]
