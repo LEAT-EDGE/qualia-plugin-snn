@@ -118,5 +118,5 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         :return: String containing the single-file C code
         """
         from qualia_codegen_plugin_snn import Converter
-        converter = Converter(output_path=output_path, timestep_mode=self._timestep_mode)
+        converter = Converter(output_path=output_path, timestep_mode=self._timestep_mode, dump_featuremaps=self._dump_featuremaps)
         return converter.convert_model(modelgraph)
