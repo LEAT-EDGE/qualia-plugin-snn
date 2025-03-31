@@ -11,7 +11,7 @@ from spikingjelly.activation_based import functional  # type: ignore[import-unty
 from .SpikingJellyTimeStepsInData import SpikingJellyTimeStepsInData
 
 if TYPE_CHECKING:
-    import torch  # noqa: TC002
+    import torch
 
 if sys.version_info >= (3, 12):
     from typing import override

@@ -7,7 +7,6 @@ import functools
 import logging
 import math
 import sys
-from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Any, Callable, Final, Literal, NamedTuple, cast
 
@@ -35,11 +34,13 @@ from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    from qualia_codegen_core.graph import ModelGraph  # noqa: TC002
-    from qualia_codegen_core.graph.layers import TAddLayer, TBaseLayer, TConvLayer, TDenseLayer  # noqa: TC002
-    from qualia_core.datamodel.RawDataModel import RawData  # noqa: TC002
-    from qualia_core.qualia import TrainResult  # noqa: TC002
-    from torch.types import Number  # noqa: TC002
+    from collections.abc import Generator
+
+    from qualia_codegen_core.graph import ModelGraph
+    from qualia_codegen_core.graph.layers import TAddLayer, TBaseLayer, TConvLayer, TDenseLayer
+    from qualia_core.datamodel.RawDataModel import RawData
+    from qualia_core.qualia import TrainResult
+    from torch.types import Number
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -1734,7 +1735,6 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         import spikingjelly.activation_based.base as sjb  # type: ignore[import-untyped]
         import torch
         from torch.fx.graph import _Namespace, _snake_case
-        from torch.nn import Module
         namespace = _Namespace()  # type: ignore[no-untyped-call]
 
 
@@ -1751,7 +1751,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         def hook(layername: str, module: nn.Module, x: torch.Tensor, output: torch.Tensor) -> None:
             # Concatenate in last dim to handle Add layer
-            input_cat = (torch.cat(cast(tuple[torch.Tensor], x), dim=-1) if isinstance(x, tuple) else x)
+            input_cat = (torch.cat(cast('tuple[torch.Tensor]', x), dim=-1) if isinstance(x, tuple) else x)
 
             inputnp = input_cat.count_nonzero().item()
             outputnp = output.count_nonzero().item()
@@ -1797,7 +1797,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         handles = [layer.register_forward_hook(functools.partial(hook,
                                                                  namespace.create_name(_snake_case(layername), layer)))
-                   for layername, layer in cast(Generator[tuple[str, Module], None, None], model.named_modules())
+                   for layername, layer in cast('Generator[tuple[str, nn.Module], None, None]', model.named_modules())
                    if not isinstance(layer, Quantizer)] # No hook to register for Quantizer module
 
         # Implement framework.predict()

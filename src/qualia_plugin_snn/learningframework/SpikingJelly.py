@@ -17,11 +17,11 @@ import qualia_plugin_snn.learningmodel.pytorch
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    from types import ModuleType  # noqa: TC003
+    from types import ModuleType
 
     from torch import nn
 
-    from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN  # noqa: TC001
+    from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
 if sys.version_info >= (3, 12):
     from typing import override

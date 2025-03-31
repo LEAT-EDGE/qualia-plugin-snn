@@ -69,8 +69,8 @@ class SHD(EventDataset):
                 raise TypeError
 
             # Assume lists of ndarray of correct dtype
-            t = cast(list[np.ndarray[Any, np.dtype[np.float16]]], times[...])
-            x = cast(list[np.ndarray[tuple[int, ...], np.dtype[np.uint16]]], units[...])
+            t = cast('list[np.ndarray[Any, np.dtype[np.float16]]]', times[...])
+            x = cast('list[np.ndarray[tuple[int, ...], np.dtype[np.uint16]]]', units[...])
 
             source_labels = np.array(dataset['labels'], dtype=np.uint8)
 

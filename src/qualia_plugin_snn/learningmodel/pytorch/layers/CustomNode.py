@@ -15,7 +15,7 @@ from spikingjelly.activation_based.neuron import BaseNode  # type: ignore[import
 from torch import nn
 
 if TYPE_CHECKING:
-    from torch.autograd.function import FunctionCtx  # noqa: TC002
+    from torch.autograd.function import FunctionCtx
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -64,7 +64,7 @@ class SpikeFunctionSigmoid(torch.autograd.Function):
         grad_x = None
         grad_output = grad_outputs[0]
         if ctx.needs_input_grad[0]:
-            x, alpha = cast(tuple[torch.Tensor, torch.Tensor], ctx.saved_tensors) # Couple of tensors saved in forward()
+            x, alpha = cast('tuple[torch.Tensor, torch.Tensor]', ctx.saved_tensors) # Couple of tensors saved in forward()
             device = x.device
             sgax = ((x * alpha.to(device=device)).sigmoid_()).to(device=device)
             grad_x = (grad_output.to(device=device)
@@ -82,7 +82,7 @@ class SpikeFunctionSigmoid(torch.autograd.Function):
         :param kwargs: Unused
         :return: Output tensor
         """
-        return cast(torch.Tensor, super().apply(*args, **kwargs))  # type: ignore[no-untyped-call]
+        return cast('torch.Tensor', super().apply(*args, **kwargs))  # type: ignore[no-untyped-call]
 
 class IFSRL(nn.Module):
     """IFSRL: Integrate and Fire soft-reset with learnable Vth and activation scaling."""

@@ -13,7 +13,7 @@ from .SNN import SNN
 
 if TYPE_CHECKING:
     import torch
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TC002
+    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
     from qualia_core.typing import RecursiveConfigDict
 
 if sys.version_info >= (3, 12):

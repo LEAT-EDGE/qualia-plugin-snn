@@ -13,9 +13,9 @@ import qualia_plugin_snn.learningmodel.pytorch.layers.quantized_SNN_layers as qs
 from qualia_plugin_snn.learningmodel.pytorch.layers import CustomNode
 
 if TYPE_CHECKING:
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TC002
+    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
     from qualia_core.typing import RecursiveConfigDict, RecursiveConfigUnion
-    from torch import nn  # noqa: TC002
+    from torch import nn
 
 logger = logging.getLogger(__name__)
 

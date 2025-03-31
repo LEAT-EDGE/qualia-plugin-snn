@@ -13,8 +13,8 @@ from torch.fx.graph_module import GraphModule
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    from qualia_core.learningframework.PyTorch import PyTorch  # noqa: TC002
-    from torch import nn  # noqa: TC002
+    from qualia_core.learningframework.PyTorch import PyTorch
+    from torch import nn
 
 if sys.version_info >= (3, 12):
     from typing import override

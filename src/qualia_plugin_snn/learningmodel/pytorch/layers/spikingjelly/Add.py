@@ -10,7 +10,7 @@ from spikingjelly.activation_based.base import StepModule  # type: ignore[import
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    import torch  # noqa: TC002
+    import torch
 
 if sys.version_info >= (3, 12):
     from typing import override

@@ -9,7 +9,7 @@ from qualia_core.typing import TYPE_CHECKING
 from qualia_core.utils.path import resources_to_path
 
 if TYPE_CHECKING:
-    from pathlib import Path  # noqa: TC003
+    from pathlib import Path
 
 
 class Windows(WindowsQualiaCore):

@@ -12,11 +12,11 @@ import qualia_plugin_snn.deployment.qualia_codegen
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    from pathlib import Path  # noqa: TC003
-    from types import ModuleType  # noqa: TC003
+    from pathlib import Path
+    from types import ModuleType
 
-    from qualia_codegen_core.graph import ModelGraph  # noqa: TC002
-    from torch import nn  # noqa: TC002
+    from qualia_codegen_core.graph import ModelGraph
+    from torch import nn
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -34,7 +34,7 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
     :meta hide-value:
     """
 
-    def __init__(self,  # noqa: PLR0913, PLR0917
+    def __init__(self,  # noqa: PLR0913
                  quantize: str,
                  long_width: int | None = None,
                  outdir: str | None = None,

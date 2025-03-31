@@ -18,7 +18,7 @@ from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.Add import Add
 from .SNN import SNN
 
 if TYPE_CHECKING:
-    from types import ModuleType  # noqa: TC003
+    from types import ModuleType
 
     from qualia_core.typing import RecursiveConfigDict
 
@@ -438,4 +438,4 @@ class SResNet(SNN):
             out = self.postpool(out)
 
         out = self.flatten(out)
-        return cast(torch.Tensor, self.linear(out))
+        return cast('torch.Tensor', self.linear(out))

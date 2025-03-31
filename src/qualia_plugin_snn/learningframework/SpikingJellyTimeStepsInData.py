@@ -17,9 +17,9 @@ from qualia_plugin_snn.dataaugmentation.pytorch.DataAugmentationPyTorchTimeSteps
 from .SpikingJelly import SpikingJelly
 
 if TYPE_CHECKING:
-    import numpy as np  # noqa: TC002
-    from qualia_core.dataaugmentation.pytorch.DataAugmentationPyTorch import DataAugmentationPyTorch  # noqa: TC002
-    from qualia_core.datamodel.RawDataModel import RawData  # noqa: TC002
+    import numpy as np
+    from qualia_core.dataaugmentation.pytorch.DataAugmentationPyTorch import DataAugmentationPyTorch
+    from qualia_core.datamodel.RawDataModel import RawData
 
 if sys.version_info >= (3, 12):
     from typing import override

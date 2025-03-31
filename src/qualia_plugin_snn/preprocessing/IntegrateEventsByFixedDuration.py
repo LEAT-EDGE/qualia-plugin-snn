@@ -17,7 +17,7 @@ from spikingjelly.datasets import integrate_events_segment_to_frame  # type: ign
 from qualia_plugin_snn.datamodel.EventDataModel import EventDataModel
 
 if TYPE_CHECKING:
-    from qualia_core.dataset.Dataset import Dataset  # noqa: TC002
+    from qualia_core.dataset.Dataset import Dataset
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -46,7 +46,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                                                j_l: np.intp,
                                                j_r: np.intp) -> np.ndarray[Any, np.dtype[np.float32]]:
         """Like spikingjelly.datasets.integrate_events_segment_to_frame but without y for 1D data."""
-        frame = np.zeros(shape=[2, w], dtype=np.float32)
+        frame = np.zeros(shape=[2, w], dtype=np.dtype(np.float32))
         x = x[j_l: j_r].astype(int)  # avoid overflow
         p = p[j_l: j_r]
 
@@ -69,7 +69,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                                            right: np.intp) -> np.ndarray[Any, np.dtype[np.float32]]:
         if not hasattr(events, 'y'): # No y means 1D data
             return self.__integrate_events_segment_to_frame_1d(events.x, events.p, w, left, right)
-        return cast(np.ndarray[Any, np.dtype[np.float32]],
+        return cast('np.ndarray[Any, np.dtype[np.float32]]',
                     integrate_events_segment_to_frame(events.x, events.y, events.p, h, w, left, right))
 
 

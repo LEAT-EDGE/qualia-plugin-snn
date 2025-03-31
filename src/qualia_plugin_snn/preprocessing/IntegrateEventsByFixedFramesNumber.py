@@ -16,9 +16,9 @@ from spikingjelly.datasets import cal_fixed_frames_number_segment_index  # type:
 from .IntegrateEventsByFixedDuration import IntegrateEventsByFixedDuration
 
 if TYPE_CHECKING:
-    from qualia_core.dataset.Dataset import Dataset  # noqa: TC002
+    from qualia_core.dataset.Dataset import Dataset
 
-    from qualia_plugin_snn.datamodel.EventDataModel import EventDataModel  # noqa: TC001
+    from qualia_plugin_snn.datamodel.EventDataModel import EventDataModel
 
 if sys.version_info >= (3, 12):
     from typing import override

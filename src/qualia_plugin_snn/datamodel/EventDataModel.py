@@ -10,9 +10,9 @@ from qualia_core.datamodel.RawDataModel import RawData
 from qualia_core.typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pathlib import Path  # noqa: TC003
+    from pathlib import Path
 
-    import numpy as np  # noqa: TC002
+    import numpy as np
 
 if sys.version_info >= (3, 12):
     from typing import override

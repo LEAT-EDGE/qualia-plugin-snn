@@ -12,9 +12,9 @@ from spikingjelly.activation_based.base import StepModule  # type: ignore[import
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
-    import torch  # noqa: TC002
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig  # noqa: TC002
-    from torch import nn  # noqa: TC002
+    import torch
+    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
+    from torch import nn
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -73,7 +73,7 @@ class QuantizedConv1d(quantized_layers1d.QuantizedConv1d,
 
         :return: String representation of :class:`torch.nn.Conv1d` with ``step_mode``.
         """
-        return cast(str, super().extra_repr()) + f', step_mode={self.step_mode}'  # type: ignore[no-untyped-call]
+        return cast('str', super().extra_repr()) + f', step_mode={self.step_mode}'  # type: ignore[no-untyped-call]
 
     # From spikingjelly.activation_based.layer.Conv1d
     # Copied to call super().forward(x) of quantized_layers1d.Conv1d instead of torch.nn.Conv1d

@@ -19,7 +19,7 @@ from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly import layers2d
 from .SNN import SNN
 
 if TYPE_CHECKING:
-    from types import ModuleType  # noqa: TC003
+    from types import ModuleType
 
     from qualia_core.typing import RecursiveConfigDict
 
