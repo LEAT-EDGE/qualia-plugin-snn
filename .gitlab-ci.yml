@@ -12,7 +12,7 @@ default:
     - pacman -S --noconfirm --needed python-tabulate python-matplotlib
     - pacman -S --noconfirm --needed python-pytest python-pytest-dependency python-pytest-xdist python-pytest-env
     - pacman -S --noconfirm --needed python-torchvision python-jinja python-tqdm python-networkx python-aiohttp
-    - pacman -S --noconfirm --needed python-async-timeout python-charset-normalizer python-frozenlist python-multidict 
+    - pacman -S --noconfirm --needed python-charset-normalizer python-frozenlist python-multidict 
     - pacman -S --noconfirm --needed python-yarl python-aiosignal python-dill python-filelock
     - pacman -S --noconfirm --needed python-blosc2 python-fsspec python-typing_extensions python-pydantic
 
