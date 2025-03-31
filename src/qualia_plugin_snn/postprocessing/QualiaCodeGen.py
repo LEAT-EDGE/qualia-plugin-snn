@@ -34,11 +34,12 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
     :meta hide-value:
     """
 
-    def __init__(self,
+    def __init__(self,  # noqa: PLR0913, PLR0917
                  quantize: str,
                  long_width: int | None = None,
                  outdir: str | None = None,
                  metrics: list[str] | None = None,
+                 dump_featuremaps: bool = False,  # noqa: FBT001, FBT002
                  timestep_mode: Literal['duplicate', 'iterate'] = 'duplicate') -> None:
         """Construct :class:`qualia_plugin_snn.postprocessing.QualiaCodeGen.QualiaCodeGen`.
 
@@ -48,10 +49,15 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         :param long_width: Long number bit width
         :param outdir: Output directory
         :param metrics: List of metrics to implement
+        :param dump_featuremaps: Generate code in model call chain to dump output of all layers to JSON files
         :param timestep_mode: Input timestep handling mode, either ``'duplicate'`` to duplicate static input data over timesteps,
             or ``'iterate'`` to iterate over existing input data timestep dimension
         """
-        super().__init__(quantize=quantize, long_width=long_width, outdir=outdir, metrics=metrics)
+        super().__init__(quantize=quantize,
+                         long_width=long_width,
+                         outdir=outdir,
+                         metrics=metrics,
+                         dump_featuremaps=dump_featuremaps)
         self._timestep_mode = timestep_mode
 
     @override
