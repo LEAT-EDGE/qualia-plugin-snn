@@ -30,6 +30,7 @@ else:
 
 logger = logging.getLogger(__name__)
 
+
 class SCNN(SNN):
     """Convolutional spiking neural network template.
 
@@ -49,6 +50,7 @@ class SCNN(SNN):
         params.strides      = [  1,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1]
         params.pool_sizes   = [  0,  2,   0,   2,   0,   0,   2,   0,   0,   2,   0,   0,   2]
         params.dropouts     = [  0,  0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, 0, 0]
+        params.separables   = [false, false, false, false, false, false, false, false, false, false, false, false, false]
         params.fc_units     = [4096, 4096]
         params.batch_norm   = true
         params.timesteps    = 4
@@ -74,6 +76,7 @@ class SCNN(SNN):
                  dropouts: float | list[float],
                  pool_sizes: list[int],
                  fc_units: list[int],
+                 separables: list[bool] | None = None,
                  batch_norm: bool = False,  # noqa: FBT001, FBT002
                  prepool: int | list[int] = 1,
                  postpool: int | list[int] = 1,
@@ -83,7 +86,7 @@ class SCNN(SNN):
 
                  gsp: bool = False,  # noqa: FBT001, FBT002
 
-                 dims: int=1) -> None:
+                 dims: int = 1) -> None:
         """Construct :class:`SCNN`.
 
         :param input_shape: Input shape
@@ -98,6 +101,8 @@ class SCNN(SNN):
                            ``filters``, no layer added if element is 0
         :param fc_units: List of :class:`torch.nn.Linear` layer ``out_features`` to add at the end of the network, no layer added
                          if empty
+        :param separables: Whether a given Conv layer is implemented as a depthwise-pointwise pair (true)
+                         or as a standard Conv (false), must be of the same size as ``filters``
         :param batch_norm: If ``True``, add a BatchNorm layer after each Conv layer, otherwise no layer added
         :param prepool: AvgPool layer ``kernel_size`` to add at the beginning of the network, no layer added if 0
         :param postpool: AvgPool layer ``kernel_size`` to add after all Conv layers, no layer added if 0
@@ -129,46 +134,71 @@ class SCNN(SNN):
         # Backward compatibility for config not defining dropout as a list
         dropout_list = [dropouts] * (len(filters) + len(fc_units)) if not isinstance(dropouts, list) else dropouts
 
+        if separables is None:
+            separables = [False] * len(filters)
+
         layers: OrderedDict[str, nn.Module] = OrderedDict()
 
         if (math.prod(prepool) if isinstance(prepool, list) else prepool) > 1:
             layers['prepool'] = sjlayers_t.AvgPool(tuple(prepool) if isinstance(prepool, list) else prepool,
                                                    step_mode=self.step_mode)
 
-        layers['conv1'] = sjlayers_t.Conv(in_channels=input_shape[-1],
-                                               out_channels=filters[0],
-                                               kernel_size=kernel_sizes[0],
-                                               padding=paddings[0],
-                                               stride=strides[0],
-                                               bias=not batch_norm,
-                                               step_mode=self.step_mode)
+        i = 1
+        for (in_filters,
+             out_filters,
+             kernel,
+             pool_size,
+             padding,
+             stride,
+             dropout,
+             separable) in zip([input_shape[-1], *filters],
+                               filters,
+                               kernel_sizes,
+                               pool_sizes,
+                               paddings,
+                               strides,
+                               dropout_list,
+                               separables):
+            if separable:
+                layers[f'conv{i}_dw'] = sjlayers_t.Conv(in_channels=in_filters,
+                                                        out_channels=in_filters,
+                                                        kernel_size=kernel,
+                                                        padding=padding,
+                                                        stride=stride,
+                                                        groups=in_filters,
+                                                        bias=not batch_norm,
+                                                        step_mode=self.step_mode)
 
-        if batch_norm:
-            layers['bn1'] = sjlayers_t.BatchNorm(filters[0], step_mode=self.step_mode)
+                if batch_norm:
+                    layers[f'bn{i}_dw'] = sjlayers_t.BatchNorm(out_filters, step_mode=self.step_mode)
 
-        layers['neuron1'] = self.create_neuron()
+                layers[f'neuron{i}_dw'] = self.create_neuron()
 
-        if dropout_list[0]:
-            layers['dropout1'] = Dropout(dropout_list[0], step_mode=self.step_mode)
-        if pool_sizes[0]:
-            layers['maxpool1'] = sjlayers_t.MaxPool(pool_sizes[0], step_mode=self.step_mode)
+                layers[f'conv{i}_pw'] = sjlayers_t.Conv(in_channels=in_filters,
+                                                          out_channels=out_filters,
+                                                          kernel_size=1,
+                                                          padding=0,
+                                                          stride=1,
+                                                          bias=not batch_norm,
+                                                          step_mode=self.step_mode)
 
-        i = 2
-        for in_filters, out_filters, kernel, pool_size, padding, stride, dropout in zip(filters, filters[1:], kernel_sizes[1:],
-                                                                                        pool_sizes[1:], paddings[1:], strides[1:],
-                                                                                        dropout_list[1:]):
-            layers[f'conv{i}'] = sjlayers_t.Conv(in_channels=in_filters,
-                                                      out_channels=out_filters,
-                                                      kernel_size=kernel,
-                                                      padding=padding,
-                                                      stride=stride,
-                                                      bias=not batch_norm,
-                                                      step_mode=self.step_mode)
+                if batch_norm:
+                    layers[f'bn{i}_pw'] = sjlayers_t.BatchNorm(out_filters, step_mode=self.step_mode)
 
-            if batch_norm:
-                layers[f'bn{i}'] = sjlayers_t.BatchNorm(out_filters, step_mode=self.step_mode)
+                layers[f'neuron{i}_pw'] = self.create_neuron()
+            else:
+                layers[f'conv{i}'] = sjlayers_t.Conv(in_channels=in_filters,
+                                                          out_channels=out_filters,
+                                                          kernel_size=kernel,
+                                                          padding=padding,
+                                                          stride=stride,
+                                                          bias=not batch_norm,
+                                                          step_mode=self.step_mode)
 
-            layers[f'neuron{i}'] = self.create_neuron()
+                if batch_norm:
+                    layers[f'bn{i}'] = sjlayers_t.BatchNorm(out_filters, step_mode=self.step_mode)
+
+                layers[f'neuron{i}'] = self.create_neuron()
 
             if dropout:
                 layers[f'dropout{i}'] = Dropout(dropout, step_mode=self.step_mode)
@@ -177,7 +207,7 @@ class SCNN(SNN):
 
             i += 1
 
-        if (math.prod(postpool) if  isinstance(postpool, list) else postpool) > 1:
+        if (math.prod(postpool) if isinstance(postpool, list) else postpool) > 1:
             layers['postpool'] = sjlayers_t.AvgPool(tuple(postpool) if isinstance(postpool, list) else postpool,
                                                     step_mode=self.step_mode)
 
@@ -196,7 +226,7 @@ class SCNN(SNN):
             in_features = np.array(input_shape[:-1]) // np.array(prepool)
             for _, kernel, pool, padding, stride in zip(filters, kernel_sizes, pool_sizes, paddings, strides):
                 in_features += np.array(padding) * 2
-                in_features -= (kernel - 1)
+                in_features -= (np.array(kernel) - 1)
                 in_features = np.ceil(in_features / stride).astype(int)
                 if pool:
                     in_features = in_features // pool
