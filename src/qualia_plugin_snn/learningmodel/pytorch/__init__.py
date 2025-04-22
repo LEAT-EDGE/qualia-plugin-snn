@@ -6,5 +6,6 @@ from .QuantizedSResNet import QuantizedSResNet
 from .SCNN import SCNN
 from .SMLP import SMLP
 from .SResNet import SResNet
+from .SResNetStride import SResNetStride
 
-__all__ = ['SCNN', 'SMLP', 'QuantizedSCNN', 'QuantizedSMLP', 'QuantizedSResNet', 'SResNet']
+__all__ = ['SCNN', 'SMLP', 'QuantizedSCNN', 'QuantizedSMLP', 'QuantizedSResNet', 'SResNet', 'SResNetStride']
