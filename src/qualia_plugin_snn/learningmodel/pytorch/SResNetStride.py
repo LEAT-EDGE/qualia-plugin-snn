@@ -116,7 +116,8 @@ class BasicBlock(nn.Module):
         :param in_planes: Number of input channels
         :param planes: Number of filters (i.e., output channels) in the main branch Conv layers
         :param kernel_size: ``kernel_size`` for the main branch Conv layers
-        :param stride: ``kernel_size`` for the MaxPool layers, no MaxPool layer added if `1`
+        :param pool_size: ``kernel_size`` for the MaxPool layers, no MaxPool layer added if `1`
+        :param stride: ``stride`` for the first Conv layer
         :param padding: Padding for the main branch Conv layers
         :param batch_norm: If ``True``, add BatchNorm layer after each Conv layer
         :param bn_momentum: BatchNorm layer ``momentum``
@@ -216,7 +217,9 @@ class BasicBlock(nn.Module):
         if self.pool_size != 1:
             tmp = self.spool(tmp)
 
-        if self.in_planes != self.expansion * self.planes or (self.force_projection_with_pooling and self.stride != 1):
+        if (self.in_planes != self.expansion * self.planes
+            or (self.force_projection_with_pooling and self.pool_size != 1)
+            or self.stride != 1):
             tmp = self.neuronr(tmp)
 
         return self.add(out, tmp)
@@ -307,15 +310,17 @@ class SResNetStride(SNN):
         :param output_shape: Output shape
         :param filters: List of ``out_channels`` for Conv layers inside each :class:`BasicBlock` group, must be of the same size
                         as ``num_blocks``, first element is for the first Conv layer at the beginning of the network
-        :param kernel_sizes: List of ``kernel_size`` for Conv layers inside each :class:`BasicBlock` group, must of the same size
-                             as ``num_blocks``, first element is for the first Conv layer at the beginning of the network
+        :param kernel_sizes: List of ``kernel_size`` for Conv layers inside each :class:`BasicBlock` group, must be of the same
+                             size as ``num_blocks``, first element is for the first Conv layer at the beginning of the network
+        :param pool_size: List of ``kernel_size`` for MaxPool layers inside each :class:`BasicBlock` group, must be of the same
+                          size as ``num_blocks``, ``stride`` is applied only to the first :class:`BasicBlock` of the group, next
+                          :class:`BasicBlock` in the group use a ``stride`` of ``1``, first element is the stride of the first Conv
+                          layer at the beginning of the network
         :param num_blocks: List of number of :class:`BasicBlock` in each group, also defines the number of :class:`BasicBlock`
                            groups inside the network
-        :param strides: List of ``kernel_size`` for MaxPool layers inside each :class:`BasicBlock` group, must of the same size as
-                        ``num_blocks``, ``stride`` is applied only to the first :class:`BasicBlock` of the group, next
-                        :class:`BasicBlock` in the group use a ``stride`` of ``1``, first element is the stride of the first Conv
-                        layer at the beginning of the network
-        :param paddings: List of ``padding`` for Conv layer inside each :class:`BasicBlock` group, must of the same size
+        :param strides: List of ``stride`` for first Conv layers inside each :class:`BasicBlock` group, must be of the same size
+                        as ``num_blocks``, first element is for the first Conv layer at the beginning of the network
+        :param paddings: List of ``padding`` for Conv layer inside each :class:`BasicBlock` group, must be of the same size
                          as ``num_blocks``, first element is for the first Conv layer at the beginning of the network
         :param prepool: AvgPool layer ``kernel_size`` to add at the beginning of the network, no layer added if 0
         :param postpool: Global pooling layer type after all :class:`BasicBlock`, either `max` for MaxPool or `avg` for AvgPool
