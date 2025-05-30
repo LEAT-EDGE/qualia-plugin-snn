@@ -219,6 +219,7 @@ class SCNN(SNN):
                                                  stride=1,
                                                  bias=True,
                                                  step_mode=self.step_mode)
+            layers[f'neuron{i}'] = self.create_neuron()
             layers['gsp'] = layers_t.GlobalSumPool()
         else:
             layers['flatten'] = Flatten(step_mode=self.step_mode)

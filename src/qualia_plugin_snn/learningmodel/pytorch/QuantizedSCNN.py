@@ -192,6 +192,7 @@ class QuantizedSCNN(SNN):
                                                           bias=True,
                                                           quant_params=quant_params,
                                                           step_mode=self.step_mode)
+            layers[f'neuron{i}'] = self.create_neuron(quant_params=quant_params)
             layers['gsp'] = layers_t.QuantizedGlobalSumPool(quant_params=quant_params)
         else:
             layers['flatten'] = Flatten(step_mode=self.step_mode)
