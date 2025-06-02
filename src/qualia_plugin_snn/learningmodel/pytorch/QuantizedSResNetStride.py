@@ -442,6 +442,7 @@ class QuantizedSResNetStride(SNN):
                                                   bias=True,
                                                   quant_params=quant_params,
                                                   step_mode=self.step_mode)
+            self.neuron2 = self.create_neuron(quant_params=quant_params)
             self.gsp = layers_t.QuantizedGlobalSumPool(quant_params=quant_params)
         else:
             # GlobalMaxPool kernel_size computation
@@ -510,6 +511,7 @@ class QuantizedSResNetStride(SNN):
 
         if hasattr(self, 'gsp'):
             out = self.conv2(out)
+            out = self.neuron2(out)
             out = self.gsp(out)
         else:
             if hasattr(self, 'postpool'):

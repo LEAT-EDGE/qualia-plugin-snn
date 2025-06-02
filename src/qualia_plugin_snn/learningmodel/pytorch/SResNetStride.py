@@ -417,6 +417,7 @@ class SResNetStride(SNN):
                                          stride=1,
                                          bias=True,
                                          step_mode=self.step_mode)
+            self.neuron2 = self.create_neuron()
             self.gsp = layers_t.GlobalSumPool()
         else:
             # GlobalMaxPool kernel_size computation
@@ -479,6 +480,7 @@ class SResNetStride(SNN):
 
         if hasattr(self, 'gsp'):
             out = self.conv2(out)
+            out = self.neuron2(out)
             out = self.gsp(out)
         else:
             if hasattr(self, 'postpool'):
