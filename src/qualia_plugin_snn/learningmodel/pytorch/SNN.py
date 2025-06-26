@@ -19,11 +19,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class SNN(LearningModelPyTorch, sjb.StepModule):  # type: ignore[misc]
     """Base class for spiking neural network models to inherit from."""
 
-    timesteps: int #: Number of timesteps
-    is_snn: bool = True #: Always ``True`` in case of spiking neural networks
+    timesteps: int  #: Number of timesteps
+    is_snn: bool = True  #: Always ``True`` in case of spiking neural networks
 
     def __select_neuron(self, neuron: RecursiveConfigDict) -> type[nn.Module]:
         """Select a spiking neuron class from a kind specified in configuration file.
@@ -54,7 +55,7 @@ class SNN(LearningModelPyTorch, sjb.StepModule):  # type: ignore[misc]
         try:
             neuron_type = getattr(sj, neurons_kind)
         except AttributeError:
-            logger.info("Module 'spikingjelly.activation_based.neuron' has no attribute %s",  neurons_kind)
+            logger.info("Module 'spikingjelly.activation_based.neuron' has no attribute %s", neurons_kind)
             logger.info('Checking learningmodel/pytorch/layers/CustomNode')
             try:
                 neuron_type = getattr(CustomNode, neurons_kind)
@@ -76,6 +77,9 @@ class SNN(LearningModelPyTorch, sjb.StepModule):  # type: ignore[misc]
         no ``None`` equivalent in TOML. However SpikingJelly neurons use ``None`` to signify soft-reset, so convert
         ``v_reset=false`` to ``v_reset=None``.
 
+        SpikingJelly expects some parameters to be float and not int, convert int to float for the following parameters:
+        ``a``, ``b``, ``tau``, ``tau_w``, ``v_reset``, ``v_rest``, ``v_threshold``, ``w_rest``.
+
         :meta public:
         :param neuron: The spiking neuron configuration dict
         :return: The ``params`` dict for the given neuron configuration dict with converted ``v_reset``
@@ -88,16 +92,19 @@ class SNN(LearningModelPyTorch, sjb.StepModule):  # type: ignore[misc]
             raise TypeError
 
         # Replace v_reset = False with v_reset = None for soft reset of SpikingJelly
-        filtered_neuron_params: dict[str, RecursiveConfigUnion | None] = {
-                k: v for k, v in neuron_params.items()
-                if k != 'v_reset'
-                }
+        filtered_neuron_params: dict[str, RecursiveConfigUnion | None] = {k: v for k, v in neuron_params.items() if k != 'v_reset'}
 
         if 'v_reset' in neuron_params:
             if neuron_params['v_reset'] is False:
                 filtered_neuron_params['v_reset'] = None
             else:
                 filtered_neuron_params['v_reset'] = neuron_params['v_reset']
+
+        for param in ['a', 'b', 'tau', 'tau_w', 'v_reset', 'v_rest', 'v_threshold', 'w_rest']:
+            if param in filtered_neuron_params:
+                v = filtered_neuron_params[param]
+                if isinstance(v, int):
+                    filtered_neuron_params[param] = float(v)
 
         return filtered_neuron_params
 
@@ -175,4 +182,3 @@ class SNN(LearningModelPyTorch, sjb.StepModule):  # type: ignore[misc]
             logger.error('`params.neuron.params.step_mode` must be a string, got: %s', type(step_mode))
             raise TypeError
         self.step_mode = step_mode
-
