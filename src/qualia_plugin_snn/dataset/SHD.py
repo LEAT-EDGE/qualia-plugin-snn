@@ -36,11 +36,11 @@ class SHD(EventDataset):
         :param prefix: source file name prefix, default to ``shd``
         """
         super().__init__()
-        self.__path = Path(path)
+        self._path = Path(path)
         self.__prefix = prefix
         self.sets.remove('valid')
 
-    def __load_shd(self, *, path: Path, part: str) -> EventData:
+    def _load_shd(self, *, path: Path, part: str) -> EventData:
         import gzip
 
         import h5py  # type: ignore[import-untyped]
@@ -114,9 +114,8 @@ class SHD(EventDataset):
 
         :return: Data model structure with train and test sets containing events and labels
         """
-        trainset = self.__load_shd(path=self.__path, part='train')
-        testset = self.__load_shd(path=self.__path, part='test')
-
+        trainset = self._load_shd(path=self._path, part='train')
+        testset = self._load_shd(path=self._path, part='test')
 
         logger.info('Shapes: train_x=%s, train_y=%s, train_info=%s, test_x=%s, test_y=%s, test_info=%s',
                     trainset.x.shape if trainset.x is not None else None,
