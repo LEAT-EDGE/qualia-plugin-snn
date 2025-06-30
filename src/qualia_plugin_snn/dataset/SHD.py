@@ -1,4 +1,4 @@
-"""DVS128-Gesture event-based dataset import module based on SpikingJelly."""
+"""Spiking Heidelberg Digits dataset import module."""
 
 from __future__ import annotations
 
@@ -21,20 +21,22 @@ else:
 
 logger = logging.getLogger(__name__)
 
+
 class SHD(EventDataset):
-    """DVS128 Gesture event-based data loading based on SpikingJelly."""
+    """Spiking Heidelberg Digits dataset data loading."""
 
     h: int = 1
     w: int = 700
 
-    def __init__(self,
-                 path: str='') -> None:
+    def __init__(self, path: str = '', prefix: str = 'shd') -> None:
         """Instantiate the Spiking Heidelberg Digits dataset loader.
 
         :param path: Dataset source path
+        :param prefix: source file name prefix, default to ``shd``
         """
         super().__init__()
         self.__path = Path(path)
+        self.__prefix = prefix
         self.sets.remove('valid')
 
     def __load_shd(self, *, path: Path, part: str) -> EventData:
@@ -49,8 +51,7 @@ class SHD(EventDataset):
         p: list[np.ndarray[Any, np.dtype[np.bool_]]] = []
         labels: list[np.ndarray[Any, np.dtype[np.uint8]]] = []
 
-
-        with gzip.open(path/f'shd_{part}.h5.gz') as f:
+        with gzip.open(path/f'{self.__prefix}_{part}.h5.gz') as f:
             dataset = h5py.File(f, 'r')
 
             spikes = dataset['spikes']
@@ -79,9 +80,9 @@ class SHD(EventDataset):
             first = 0
             last = 0
             for i, sample in enumerate(x):
-                labels.append(np.full(sample.shape, source_labels[i], dtype=np.uint8)) # Duplicate labels for all events
+                labels.append(np.full(sample.shape, source_labels[i], dtype=np.uint8))  # Duplicate labels for all events
 
-                p.append(np.ones_like(sample, dtype=np.bool_)) # Generate only positive spikes
+                p.append(np.ones_like(sample, dtype=np.bool_))  # Generate only positive spikes
 
                 # Record sample start and end indices
                 last += len(labels[-1])
@@ -90,13 +91,12 @@ class SHD(EventDataset):
                 first = last
 
             t_array = np.concatenate(t)
-            t_array = (t_array.astype(np.float64) * 1000000).astype(np.int64) # Convert from s to µs
+            t_array = (t_array.astype(np.float64) * 1000000).astype(np.int64)  # Convert from s to µs
             x_array = np.concatenate(x)
             p_array = np.concatenate(p)
             labels_array = np.concatenate(labels)
 
-        data = np.rec.fromarrays([t_array, x_array, p_array],
-                dtype=np.dtype([('t', np.int64), ('x', np.uint16), ('p', np.bool_)]))
+        data = np.rec.fromarrays([t_array, x_array, p_array], dtype=np.dtype([('t', np.int64), ('x', np.uint16), ('p', np.bool_)]))
 
         logger.info('Loading finished in %s s.', time.time() - start)
         return EventData(data, labels_array, info=sample_indices)

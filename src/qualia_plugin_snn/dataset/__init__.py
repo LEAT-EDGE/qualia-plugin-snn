@@ -3,9 +3,11 @@
 from .DVSGesture import DVSGesture
 from .DVSGestureWithPreprocessing import DVSGestureWithPreprocessing
 from .SHD import SHD
+from .SSC import SSC
 
 __all__ = [
-        'SHD',
-        'DVSGesture',
-        'DVSGestureWithPreprocessing',
-        ]
+    'SHD',
+    'SSC',
+    'DVSGesture',
+    'DVSGestureWithPreprocessing',
+]
