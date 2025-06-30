@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import logging
 import sys
 import time
@@ -51,50 +52,56 @@ class SHD(EventDataset):
         p: list[np.ndarray[Any, np.dtype[np.bool_]]] = []
         labels: list[np.ndarray[Any, np.dtype[np.uint8]]] = []
 
+        logger.info('Reading %s', path/f'{self.__prefix}_{part}.h5.gz')
+
         with gzip.open(path/f'{self.__prefix}_{part}.h5.gz') as f:
-            dataset = h5py.File(f, 'r')
+            buf = f.read()
 
-            spikes = dataset['spikes']
-            if not isinstance(spikes, h5py.Group):
-                logger.error('Expected "spikes" to be a Group, got: %s', type(spikes))
-                raise TypeError
+        logger.info('Decompressed in %s s.', time.time() - start)
+        fbuf = io.BytesIO(buf)
+        dataset = h5py.File(fbuf, 'r')
 
-            times = spikes['times']
-            if not isinstance(times, h5py.Dataset):
-                logger.error('Expected "spikes.times" to be a Dataset, got: %s', type(times))
-                raise TypeError
+        spikes = dataset['spikes']
+        if not isinstance(spikes, h5py.Group):
+            logger.error('Expected "spikes" to be a Group, got: %s', type(spikes))
+            raise TypeError
 
-            units = spikes['units']
-            if not isinstance(units, h5py.Dataset):
-                logger.error('Expected "spikes.units" to be a Dataset, got: %s', type(units))
-                raise TypeError
+        times = spikes['times']
+        if not isinstance(times, h5py.Dataset):
+            logger.error('Expected "spikes.times" to be a Dataset, got: %s', type(times))
+            raise TypeError
 
-            # Assume lists of ndarray of correct dtype
-            t = cast('list[np.ndarray[Any, np.dtype[np.float16]]]', times[...])
-            x = cast('list[np.ndarray[tuple[int, ...], np.dtype[np.uint16]]]', units[...])
+        units = spikes['units']
+        if not isinstance(units, h5py.Dataset):
+            logger.error('Expected "spikes.units" to be a Dataset, got: %s', type(units))
+            raise TypeError
 
-            source_labels = np.array(dataset['labels'], dtype=np.uint8)
+        # Assume lists of ndarray of correct dtype
+        t = cast('list[np.ndarray[Any, np.dtype[np.float16]]]', times[...])
+        x = cast('list[np.ndarray[tuple[int, ...], np.dtype[np.uint16]]]', units[...])
 
-            sample_indices = np.recarray((len(x),), dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
+        source_labels = np.array(dataset['labels'], dtype=np.uint8)
 
-            first = 0
-            last = 0
-            for i, sample in enumerate(x):
-                labels.append(np.full(sample.shape, source_labels[i], dtype=np.uint8))  # Duplicate labels for all events
+        sample_indices = np.recarray((len(x),), dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
 
-                p.append(np.ones_like(sample, dtype=np.bool_))  # Generate only positive spikes
+        first = 0
+        last = 0
+        for i, sample in enumerate(x):
+            labels.append(np.full(sample.shape, source_labels[i], dtype=np.uint8))  # Duplicate labels for all events
 
-                # Record sample start and end indices
-                last += len(labels[-1])
-                sample_indices[i].begin = first
-                sample_indices[i].end = last
-                first = last
+            p.append(np.ones_like(sample, dtype=np.bool_))  # Generate only positive spikes
 
-            t_array = np.concatenate(t)
-            t_array = (t_array.astype(np.float64) * 1000000).astype(np.int64)  # Convert from s to µs
-            x_array = np.concatenate(x)
-            p_array = np.concatenate(p)
-            labels_array = np.concatenate(labels)
+            # Record sample start and end indices
+            last += len(labels[-1])
+            sample_indices[i].begin = first
+            sample_indices[i].end = last
+            first = last
+
+        t_array = np.concatenate(t)
+        t_array = (t_array.astype(np.float64) * 1000000).astype(np.int64)  # Convert from s to µs
+        x_array = np.concatenate(x)
+        p_array = np.concatenate(p)
+        labels_array = np.concatenate(labels)
 
         data = np.rec.fromarrays([t_array, x_array, p_array], dtype=np.dtype([('t', np.int64), ('x', np.uint16), ('p', np.bool_)]))
 
