@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import io
 import logging
 import sys
@@ -41,8 +42,6 @@ class SHD(EventDataset):
         self.sets.remove('valid')
 
     def _load_shd(self, *, path: Path, part: str) -> EventData:
-        import gzip
-
         import h5py  # type: ignore[import-untyped]
 
         start = time.time()

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
-import numpy.typing
+import numpy.typing as npt
 from qualia_core.datamodel import RawDataModel
 from qualia_core.datamodel.RawDataModel import RawData
 from qualia_core.dataset.RawDataset import RawDataset
@@ -29,8 +29,8 @@ else:
 
 logger = logging.getLogger(__name__)
 
-LoadFramesReturnT = tuple[tuple[str, tuple[int, ...], numpy.typing.DTypeLike], tuple[str, tuple[int, ...], numpy.typing.DTypeLike]]
-SharedMemoryArrayReturnT = tuple[str, tuple[int, ...], numpy.typing.DTypeLike]
+LoadFramesReturnT = tuple[tuple[str, tuple[int, ...], npt.DTypeLike], tuple[str, tuple[int, ...], npt.DTypeLike]]
+SharedMemoryArrayReturnT = tuple[str, tuple[int, ...], npt.DTypeLike]
 
 class DVSGestureWithPreprocessing(RawDataset):
     """DVS128 Gesture event-based data loading based on SpikingJelly including preprocessing to frames and timesteps."""
@@ -67,8 +67,8 @@ class DVSGestureWithPreprocessing(RawDataset):
 
     def _shared_memory_array(self,
                              smm: SharedMemoryManager,
-                             data_array: numpy.typing.NDArray[np.float32] |
-                                         numpy.typing.NDArray[np.int32]) -> SharedMemoryArrayReturnT:
+                             data_array: npt.NDArray[np.float32] |
+                                         npt.NDArray[np.int32]) -> SharedMemoryArrayReturnT:
         data_buffer = smm.SharedMemory(size=data_array.nbytes)
         data_shared = np.frombuffer(data_buffer.buf, count=data_array.size, dtype=data_array.dtype).reshape(data_array.shape)
 
@@ -86,7 +86,7 @@ class DVSGestureWithPreprocessing(RawDataset):
                      smm_address: str | tuple[str, int],
                      i: int,
                      dvs128gesture: DVS128Gesture,
-                     chunks: numpy.typing.NDArray[np.int32]) -> LoadFramesReturnT:
+                     chunks: npt.NDArray[np.int32]) -> LoadFramesReturnT:
         """Subprocess entry point to load and process data for a set of samples.
 
         :param i: Process number
@@ -105,11 +105,11 @@ class DVSGestureWithPreprocessing(RawDataset):
         w: int
         h, w = dvs128gesture.get_H_W()
 
-        data_list: list[numpy.typing.NDArray[np.float32]] = []
-        labels_list: list[numpy.typing.NDArray[np.int32]] = []
+        data_list: list[npt.NDArray[np.float32]] = []
+        labels_list: list[npt.NDArray[np.int32]] = []
 
         for j in chunks:
-            data64: numpy.typing.NDArray[np.float64] = integrate_events_by_fixed_duration(events=dvs128gesture[j][0],
+            data64: npt.NDArray[np.float64] = integrate_events_by_fixed_duration(events=dvs128gesture[j][0],
                                                                                          duration=self.__duration,
                                                                                          H=h,
                                                                                          W=w)
@@ -153,7 +153,7 @@ class DVSGestureWithPreprocessing(RawDataset):
 
             def load_results(futures: list[Future[LoadFramesReturnT]],
                              resloader: Callable[[LoadFramesReturnT],
-                                                 SharedMemoryArrayReturnT]) -> numpy.typing.NDArray[np.float32]:
+                                                 SharedMemoryArrayReturnT]) -> npt.NDArray[np.float32]:
 
                 names = [resloader(f.result())[0] for f in futures]
                 shapes = [resloader(f.result())[1] for f in futures]
