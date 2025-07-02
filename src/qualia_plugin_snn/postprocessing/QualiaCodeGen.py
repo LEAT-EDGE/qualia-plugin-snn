@@ -91,7 +91,7 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         from qualia_core.learningmodel.pytorch.layers import Add, GlobalSumPool1d, GlobalSumPool2d
         from torch import nn
 
-        custom_layers: dict[type[nn.Module], Callable[[nn.Module, TBaseLayer], tuple[type[TBaseLayer], list[Any]]]]= {
+        custom_layers: dict[type[nn.Module], Callable[[nn.Module, TBaseLayer], tuple[type[TBaseLayer], list[Any]]]] = {
                 sjl.AvgPool1d: TorchModelGraph.MODULE_MAPPING[nn.AvgPool1d],
                 sjl.AvgPool2d: TorchModelGraph.MODULE_MAPPING[nn.AvgPool2d],
                 sjl.AdaptiveAvgPool1d: TorchModelGraph.MODULE_MAPPING[nn.AdaptiveAvgPool1d],

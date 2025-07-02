@@ -10,6 +10,7 @@ if sys.version_info >= (3, 12):
 else:
     from typing_extensions import override
 
+
 class Split2TimeSteps(Preprocessing[RawDataModel, RawDataModel]):
     """Preprocessing module to split 1D input dataset into multiple timesteps."""
 
@@ -36,6 +37,6 @@ class Split2TimeSteps(Preprocessing[RawDataModel, RawDataModel]):
         for _, s in datamodel:
             truncated_dim = (s.x.shape[1] // self.__chunks) * self.__chunks
             s.x = s.x[:,:truncated_dim,:]
-            s.x = s.x.reshape((s.x.shape[0], self.__chunks, s.x.shape[1] // self.__chunks) + s.x.shape[2:])
+            s.x = s.x.reshape((s.x.shape[0], self.__chunks, s.x.shape[1] // self.__chunks, *s.x.shape[2:]))
 
         return datamodel

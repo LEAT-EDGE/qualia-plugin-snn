@@ -37,7 +37,7 @@ class BasicBlockBuilder(Protocol):
     Used to bind hyperparameters constant across all the ResNet blocks.
     """
 
-    def __call__(self,  # noqa: PLR0913, PLR0917
+    def __call__(self,  # noqa: PLR0913
                  in_planes: int,
                  planes: int,
                  kernel_size: int,
@@ -97,7 +97,7 @@ class BasicBlock(nn.Module):
 
     expansion: int = 1  #: Unused
 
-    def __init__(self,  # noqa: PLR0913, PLR0917
+    def __init__(self,  # noqa: PLR0913
                  sjlayers_t: ModuleType,
                  in_planes: int,
                  planes: int,
@@ -257,7 +257,7 @@ class SResNetStride(SNN):
         params.neuron.params.backend = 'torch'
     """
 
-    def __init__(self,  # noqa: C901, PLR0912, PLR0913, PLR0917
+    def __init__(self,  # noqa: C901, PLR0912, PLR0913
                  input_shape: tuple[int, ...],
                  output_shape: tuple[int, ...],
                  filters: list[int],
@@ -355,7 +355,7 @@ class SResNetStride(SNN):
             raise ValueError
 
         if basicblockbuilder is None:
-            def builder(in_planes: int,  # noqa: PLR0913, PLR0917
+            def builder(in_planes: int,  # noqa: PLR0913
                         planes: int,
                         kernel_size: int,
                         pool_size: int,
@@ -436,7 +436,7 @@ class SResNetStride(SNN):
             self.flatten = Flatten(step_mode=self.step_mode)
             self.linear = Linear(self.in_planes * BasicBlock.expansion, output_shape[0], step_mode=self.step_mode)
 
-    def _make_layer(self,  # noqa: PLR0913, PLR0917
+    def _make_layer(self,  # noqa: PLR0913
                     basicblockbuilder: BasicBlockBuilder,
                     num_blocks: int,
                     planes: int,

@@ -55,7 +55,7 @@ class QuantizedBasicBlockBuilder(Protocol):
     Used to bind hyperparameters constant across all the ResNet blocks.
     """
 
-    def __call__(self,  # noqa: PLR0913, PLR0917
+    def __call__(self,  # noqa: PLR0913
                  in_planes: int,
                  planes: int,
                  kernel_size: int,
@@ -119,7 +119,7 @@ class QuantizedBasicBlock(nn.Module):
 
     expansion: int = 1  #: Unused
 
-    def __init__(self,  # noqa: PLR0913, PLR0917
+    def __init__(self,  # noqa: PLR0913
                  sjlayers_t: ModuleType,
                  in_planes: int,
                  planes: int,
@@ -262,7 +262,7 @@ class QuantizedSResNetStride(SNN):
     replaced with their quantized equivalent.
     """
 
-    def __init__(self,  # noqa: C901, PLR0912, PLR0913, PLR0917
+    def __init__(self,  # noqa: C901, PLR0912, PLR0913, PLR0915
                  input_shape: tuple[int, ...],
                  output_shape: tuple[int, ...],
                  filters: list[int],
@@ -373,7 +373,7 @@ class QuantizedSResNetStride(SNN):
             raise ValueError
 
         if basicblockbuilder is None:
-            def builder(in_planes: int,  # noqa: PLR0913, PLR0917
+            def builder(in_planes: int,  # noqa: PLR0913
                         planes: int,
                         kernel_size: int,
                         pool_size: int,
@@ -469,7 +469,7 @@ class QuantizedSResNetStride(SNN):
                                           step_mode=self.step_mode,
                                           quant_params=quant_params)
 
-    def _make_layer(self,  # noqa: PLR0913, PLR0917
+    def _make_layer(self,  # noqa: PLR0913
                     basicblockbuilder: QuantizedBasicBlockBuilder,
                     num_blocks: int,
                     planes: int,
