@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from qualia_core.datamodel.RawDataModel import RawData, RawDataModel, RawDataSets
@@ -108,9 +108,12 @@ class IntegrateEventsByFixedFramesNumber(IntegrateEventsByFixedDuration):
 
             first = 0
             last = 0
-            for sample in s.info: # For each input sample
+            for sample in s.info:  # For each input sample
+                # recarray.__getitem__ should return a recarray bus is not type-hinted as such and inherits ndarray type hint
+                events = cast('np.recarray[Any, Any]', s.x[sample.begin:sample.end])
+
                 data, labels = self.__integrate_events_by_fixed_frames_number(
-                        events=s.x[sample.begin:sample.end],
+                        events=events,
                         labels=s.y[sample.begin:sample.end],
                         h=datamodel.h,
                         w=datamodel.w)

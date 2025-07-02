@@ -6,12 +6,12 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]
 
-from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataModel, EventDataSets
+from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataInfo, EventDataInfoRecord, EventDataModel, EventDataSets
 
 from .EventDataset import EventDataset
 
@@ -67,7 +67,7 @@ class DVSGesture(EventDataset):
         labels: list[np.ndarray[Any, np.dtype[np.int8]]] = []
 
         # Couple of begin and end indices for each sample in concatenated array
-        sample_indices = np.recarray((len(dvs128gesture),), dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
+        sample_indices = EventDataInfo((len(dvs128gesture),))
 
         first = 0
         last = 0
@@ -79,8 +79,8 @@ class DVSGesture(EventDataset):
             labels.append(np.full(sample[0]['t'].shape[0], sample[1], dtype=np.int8))
 
             last += len(t[-1])
-            sample_indices[i].begin = first
-            sample_indices[i].end = last
+            cast('EventDataInfoRecord', sample_indices[i]).begin = np.int64(first)
+            cast('EventDataInfoRecord', sample_indices[i]).end = np.int64(last)
             first = last
 
         t_array = np.concatenate(t)

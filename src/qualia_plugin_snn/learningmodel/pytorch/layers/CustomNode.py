@@ -201,7 +201,7 @@ class ATIF(BaseNode):  # type: ignore[misc]
 
     @property
     @override
-    def supported_backends(self) -> tuple[Literal['torch']]: # type: ignore[misc]
+    def supported_backends(self) -> tuple[Literal['torch']]:
         """Supported step_mode and backend.
 
         Only single-step mode with torch backend is supported.
@@ -248,7 +248,7 @@ class ATIF(BaseNode):  # type: ignore[misc]
         return z * self.get_coeffs()
 
     @override
-    def single_step_forward(self, x: torch.Tensor) -> torch.Tensor: # type: ignore[misc]
+    def single_step_forward(self, x: torch.Tensor) -> torch.Tensor:
         """Single-step mode forward of ATIF.
 
         Calls :meth:`ifsrl_fn`.

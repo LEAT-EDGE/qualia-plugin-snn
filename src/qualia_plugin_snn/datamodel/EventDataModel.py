@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Callable
+from typing import Any, Callable, Literal, cast
 
+import numpy as np
 from qualia_core.datamodel.DataModel import DataModel
 from qualia_core.datamodel.RawDataModel import RawData
 from qualia_core.typing import TYPE_CHECKING
@@ -12,20 +13,43 @@ from qualia_core.typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import numpy as np
+    if sys.version_info >= (3, 11):
+        from typing import Self
+    else:
+        from typing_extensions import Self
 
 if sys.version_info >= (3, 12):
     from typing import override
 else:
     from typing_extensions import override
 
+
+class EventDataInfoRecord(np.record):
+    """Container for being and end index of event sample."""
+
+    begin: np.int64
+    end: np.int64
+
+
+class EventDataInfo(np.recarray[tuple[int], np.dtype[EventDataInfoRecord]]):
+    """Array of `:class:EventDataInfoRecord` for event sample index tracking."""
+
+    __module__: Literal['numpy'] = 'numpy'
+
+    def __new__(cls, shape: tuple[int, ...]) -> Self:
+        """Create a new array with the given shape. Data type is implicitely set to the `:class:EventDataInfoRecord` fields."""
+        return cast('Self', np.recarray.__new__(cls, shape, dtype=np.dtype([('begin', np.int64), ('end', np.int64)])))
+
 class EventData(RawData):
     """Dataset partition with events as x data."""
 
     x: np.recarray[Any, Any]
+    info: EventDataInfo
+
 
 class EventDataSets(DataModel.Sets[EventData]):
     """Container for event-based dataset partitions."""
+
 
 class EventDataModel(DataModel[EventData]):
     """Container for event-based data model."""

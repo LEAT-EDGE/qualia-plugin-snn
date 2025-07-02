@@ -77,7 +77,7 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
 
     @property
     @override
-    def supported_backends(self) -> tuple[Literal['torch']]: # type: ignore[misc]
+    def supported_backends(self) -> tuple[Literal['torch']]:
         """Supported step_mode and backend.
 
         Only torch backend is supported.
@@ -90,7 +90,7 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
         raise ValueError(self.step_mode)
 
     @override
-    def neuronal_charge(self, x: torch.Tensor) -> None: # type: ignore[misc]
+    def neuronal_charge(self, x: torch.Tensor) -> None:
         """Quantized :meth:`spikingjelly.activation_based.neuron.LIFNode.neuronal_charge`.
 
         Membrane potential and hyperparameters are quantized before and after computation using :meth:`quantize_v_and_hyperparams`.
@@ -102,7 +102,7 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
         self.quantize_v_and_hyperparams()
 
     @override
-    def single_step_forward(self, x: torch.Tensor) -> torch.Tensor: # type: ignore[misc]
+    def single_step_forward(self, x: torch.Tensor) -> torch.Tensor:
         """Quantized :meth:`spikingjelly.activation_based.neuron.LIFNode.single_step_forward`.
 
         Input is (optionally) quantized.
@@ -149,7 +149,7 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
         return self.quantizer_act(spike)
 
     @override
-    def multi_step_forward(self, x_seq: torch.Tensor) -> torch.Tensor: # type: ignore[misc]
+    def multi_step_forward(self, x_seq: torch.Tensor) -> torch.Tensor:
         """Implement multi-step as loop over single-step for quantized neurons, inefficient but at least it works.
 
         :param x_seq: Input tensor with timesteps
@@ -208,6 +208,7 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
     def weights_round_mode(self) -> str | None:
         return self.quantizer_v.roundtype
 
+
 class QuantizedIFNode(IFNode,  # type: ignore[misc]
                       QuantizerInputProtocol,
                       QuantizerActProtocol,
@@ -259,7 +260,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
 
     @property
     @override
-    def supported_backends(self) -> tuple[Literal['torch']]: # type: ignore[misc]
+    def supported_backends(self) -> tuple[Literal['torch']]:
         """Supported step_mode and backend.
 
         Only torch backend is supported.
@@ -272,7 +273,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
         raise ValueError(self.step_mode)
 
     @override
-    def neuronal_charge(self, x: torch.Tensor) -> None: # type: ignore[misc]
+    def neuronal_charge(self, x: torch.Tensor) -> None:
         """Quantized :meth:`spikingjelly.activation_based.neuron.IFNode.neuronal_charge`.
 
         Membrane potential and hyperparameters are quantized before and after computation using :meth:`quantize_v_and_hyperparams`.
@@ -284,7 +285,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
         self.quantize_v_and_hyperparams()
 
     @override
-    def single_step_forward(self, x: torch.Tensor) -> torch.Tensor: # type: ignore[misc]
+    def single_step_forward(self, x: torch.Tensor) -> torch.Tensor:
         """Quantized :meth:`spikingjelly.activation_based.neuron.IFNode.single_step_forward`.
 
         Input is (optionally) quantized.
@@ -312,7 +313,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
         return self.quantizer_act(spike)
 
     @override
-    def multi_step_forward(self, x_seq: torch.Tensor) -> torch.Tensor: # type: ignore[misc]
+    def multi_step_forward(self, x_seq: torch.Tensor) -> torch.Tensor:
         """Implement multi-step as loop over single-step for quantized neurons, inefficient but at least it works.
 
         :param x_seq: Input tensor with timesteps
@@ -357,6 +358,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
     @override
     def weights_round_mode(self) -> str | None:
         return self.quantizer_v.roundtype
+
 
 class QuantizedATIF(ATIF,
                     QuantizerInputProtocol,

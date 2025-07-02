@@ -12,7 +12,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataModel, EventDataSets
+from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataInfo, EventDataInfoRecord, EventDataModel, EventDataSets
 
 from .EventDataset import EventDataset
 
@@ -81,7 +81,7 @@ class SHD(EventDataset):
 
         source_labels = np.array(dataset['labels'], dtype=np.uint8)
 
-        sample_indices = np.recarray((len(x),), dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
+        sample_indices = EventDataInfo((len(x),))
 
         first = 0
         last = 0
@@ -92,8 +92,8 @@ class SHD(EventDataset):
 
             # Record sample start and end indices
             last += len(labels[-1])
-            sample_indices[i].begin = first
-            sample_indices[i].end = last
+            cast('EventDataInfoRecord', sample_indices[i]).begin = np.int64(first)
+            cast('EventDataInfoRecord', sample_indices[i]).end = np.int64(last)
             first = last
 
         t_array = np.concatenate(t)

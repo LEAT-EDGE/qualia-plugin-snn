@@ -46,7 +46,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                                                j_l: np.intp,
                                                j_r: np.intp) -> np.ndarray[Any, np.dtype[np.float32]]:
         """Like spikingjelly.datasets.integrate_events_segment_to_frame but without y for 1D data."""
-        frame = np.zeros(shape=[2, w], dtype=np.dtype(np.float32))
+        frame: np.ndarray[Any, np.dtype[np.float32]] = np.zeros(shape=[2, w], dtype=np.dtype(np.float32))
         x = x[j_l: j_r].astype(int)  # avoid overflow
         p = p[j_l: j_r]
 
@@ -59,7 +59,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
             events_number_per_pos = np.bincount(position)
             frame[c][np.arange(events_number_per_pos.size)] += events_number_per_pos
 
-        return frame.reshape((2, w))
+        return frame
 
     def _integrate_events_segment_to_frame(self,
                                            events: np.recarray[Any, Any],
@@ -153,9 +153,12 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
             first = 0
             last = 0
-            for sample in s.info: # For each input sample
+            for sample in s.info:  # For each input sample
+                # recarray.__getitem__ should return a recarray bus is not type-hinted as such and inherits ndarray type hint
+                events = cast('np.recarray[Any, Any]', s.x[sample.begin:sample.end])
+
                 data, labels = self.__integrate_events_by_fixed_duration(
-                        events=s.x[sample.begin:sample.end],
+                        events=events,
                         labels=s.y[sample.begin:sample.end],
                         h=datamodel.h,
                         w=datamodel.w)

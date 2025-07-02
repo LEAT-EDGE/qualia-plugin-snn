@@ -10,7 +10,7 @@ import time
 from concurrent.futures import Future, ProcessPoolExecutor
 from multiprocessing.shared_memory import SharedMemory
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
 import numpy.typing as npt
@@ -145,7 +145,7 @@ class DVSGestureWithPreprocessing(RawDataset):
         chunks_list = np.array_split(np.arange(samples, dtype=np.int32), total_chunks)
 
         with SharedMemoryManager() as smm, ProcessPoolExecutor(initializer=init_process) as executor:
-            if smm.address is None: # After smm is started in context, address is necessary non-None
+            if smm.address is None:  # After smm is started in context, address is necessary non-None
                 raise RuntimeError
 
             train_futures = [executor.submit(self._load_frames, smm.address, i, dvs128gesture, chunks)
@@ -153,7 +153,7 @@ class DVSGestureWithPreprocessing(RawDataset):
 
             def load_results(futures: list[Future[LoadFramesReturnT]],
                              resloader: Callable[[LoadFramesReturnT],
-                                                 SharedMemoryArrayReturnT]) -> npt.NDArray[np.float32]:
+                                                 SharedMemoryArrayReturnT]) -> np.ndarray[Any, Any]:
 
                 names = [resloader(f.result())[0] for f in futures]
                 shapes = [resloader(f.result())[1] for f in futures]
@@ -163,7 +163,7 @@ class DVSGestureWithPreprocessing(RawDataset):
                 data_list = [np.frombuffer(buf.buf, count=math.prod(shape), dtype=dtype).reshape(shape)
                           for shape, dtype, buf in zip(shapes, dtypes, bufs)]
 
-                data_array = np.concatenate(data_list)
+                data_array: np.ndarray[Any, Any] = np.concatenate(data_list)
                 del data_list
 
                 for buf in bufs:
