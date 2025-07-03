@@ -7,11 +7,11 @@ plugins     = ["qualia_plugin_snn"]         # Enable SNN support
 
 [learningframework]
 kind = "SpikingJellyMultiStep"              # Multi-step processing for efficiency
-params.devices  = [1]         # Number of devices to use
+params.devices  = 1         # Number of devices to use
 
 [dataset]
 kind            = "EuroSAT"
-params.path     = "../../../shared/EuroSAT"    # Path to extracted dataset
+params.path     = "data/EuroSAT"    # Path to extracted dataset
 params.variant  = "MS"
 
 [[preprocessing]]
