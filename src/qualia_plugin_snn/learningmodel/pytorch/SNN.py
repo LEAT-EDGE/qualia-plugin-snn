@@ -13,7 +13,7 @@ import qualia_plugin_snn.learningmodel.pytorch.layers.quantized_SNN_layers as qs
 from qualia_plugin_snn.learningmodel.pytorch.layers import CustomNode
 
 if TYPE_CHECKING:
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
+    from qualia_core.learningmodel.pytorch.layers.Quantizer import QuantizationConfig
     from qualia_core.typing import RecursiveConfigDict, RecursiveConfigUnion
     from torch import nn
 
@@ -112,7 +112,7 @@ class SNN(LearningModelPyTorch, sjb.StepModule):  # type: ignore[misc]
         """Instanciate a spiking neuron from the kind and params found in ``neuron`` of :meth:``__init__``.
 
         :param quant_params: Optional quantization configuration dict in case of quantized network, see
-                             :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+                             :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         :return: A spiking neuron instance
         """
         if quant_params is not None:

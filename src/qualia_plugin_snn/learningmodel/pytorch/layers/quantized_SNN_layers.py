@@ -7,7 +7,7 @@ from typing import Literal
 
 import torch
 from qualia_core.learningmodel.pytorch.layers.QuantizedLayer import QuantizedLayer, QuantizerActProtocol, QuantizerInputProtocol
-from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig, Quantizer, update_params
+from qualia_core.learningmodel.pytorch.layers.Quantizer import QuantizationConfig, Quantizer, update_params
 from spikingjelly.activation_based.neuron import IFNode, LIFNode  # type: ignore[import-untyped]
 
 from .CustomNode import ATIF, SpikeFunctionSigmoid
@@ -54,7 +54,8 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
         :param detach_reset: Whether detach the computation graph of reset in backward
         :param step_mode: The step mode, which can be `s` (single-step) or `m` (multi-step)
         :param backend: backend fot this neurons layer, only 'torch' is supported
-        :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+        :param quant_params: Quantization configuration dict,
+                             see :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         """
         self.call_super_init = True # Support multiple inheritance from nn.Module
         super().__init__(tau=tau,
@@ -197,7 +198,7 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
+        See :meth:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer.fractional_bits`.
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
@@ -240,7 +241,8 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
         :param detach_reset: Whether detach the computation graph of reset in backward
         :param step_mode: The step mode, which can be `s` (single-step) or `m` (multi-step)
         :param backend: backend fot this neurons layer, only 'torch' is supported
-        :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+        :param quant_params: Quantization configuration dict,
+                             see :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         """
         self.call_super_init = True # Support multiple inheritance from nn.Module
         super().__init__(v_threshold=v_threshold,
@@ -348,7 +350,7 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
+        See :meth:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer.fractional_bits`.
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """
@@ -380,7 +382,8 @@ class QuantizedATIF(ATIF,
         :param vth_init_h: Higher bound for uniform initialization of threshold Tensor
         :param alpha: Sigmoig surrogate scale factor
         :param device: Device to run the computation on
-        :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+        :param quant_params: Quantization configuration dict,
+                             see :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         """
         super().__init__(v_threshold=v_threshold,
                          vth_init_l=vth_init_l,
@@ -446,7 +449,7 @@ class QuantizedATIF(ATIF,
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
-        See :meth:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer.fractional_bits`.
+        See :meth:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer.fractional_bits`.
 
         :return: Fractional part bits for the membrane potential and hyperparameters or ``None`` if not applicable.
         """

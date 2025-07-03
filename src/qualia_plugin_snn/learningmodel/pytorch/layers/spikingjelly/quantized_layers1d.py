@@ -5,7 +5,7 @@ import logging
 import sys
 from typing import cast
 
-from qualia_core.learningmodel.pytorch import quantized_layers1d
+from qualia_core.learningmodel.pytorch.layers import quantized_layers1d
 from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.activation_based import functional  # type: ignore[import-untyped]
 from spikingjelly.activation_based.base import StepModule  # type: ignore[import-untyped]
@@ -13,7 +13,7 @@ from spikingjelly.activation_based.base import StepModule  # type: ignore[import
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
     import torch
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
+    from qualia_core.learningmodel.pytorch.layers.Quantizer import QuantizationConfig
     from torch import nn
 
 if sys.version_info >= (3, 12):
@@ -50,7 +50,7 @@ class QuantizedConv1d(quantized_layers1d.QuantizedConv1d,
         :param groups: Number of blocked connections from input channels to output channels
         :param bias: If ``True``, adds a learnable bias to the output
         :param quant_params: Dict containing quantization parameters, see
-                             :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+                             :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         :param activation: Activation layer to fuse for quantization purposes, ``None`` if unfused or no activation
         :param step_mode: SpikingJelly's ``step_mode``, either ``'s'`` or ``'m'``, see
                           :class:`spikingjelly.activation_based.layer.Linear`
@@ -113,7 +113,7 @@ class QuantizedMaxPool1d(quantized_layers1d.QuantizedMaxPool1d,
         :param stride: Stride of the sliding window
         :param padding:  Implicit negative infinity padding to be added on both sides
         :param quant_params: Dict containing quantization parameters, see
-                             :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+                             :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         :param activation: Activation layer to fuse for quantization purposes, ``None`` if unfused or no activation
         :param step_mode: SpikingJelly's ``step_mode``, either ``'s'`` or ``'m'``, see
                           :class:`spikingjelly.activation_based.layer.Linear`
@@ -179,7 +179,7 @@ class QuantizedBatchNorm1d(quantized_layers1d.QuantizedBatchNorm1d,
         :param device: Optional device to perform the computation on
         :param dtype: Optional data type
         :param quant_params: Dict containing quantization parameters, see
-                             :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+                             :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         :param activation: Activation layer to fuse for quantization purposes, ``None`` if unfused or no activation
         :param step_mode: SpikingJelly's ``step_mode``, either ``'s'`` or ``'m'``, see
                           :class:`spikingjelly.activation_based.layer.Linear`

@@ -13,7 +13,7 @@ from .SNN import SNN
 
 if TYPE_CHECKING:
     import torch
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
+    from qualia_core.learningmodel.pytorch.layers.Quantizer import QuantizationConfig
     from qualia_core.typing import RecursiveConfigDict
 
 if sys.version_info >= (3, 12):
@@ -40,7 +40,8 @@ class QuantizedSMLP(SNN):
         :param input_shape: Input shape
         :param output_shape: Output shape
         :param units: List of :class:`torch.nn.Linear` layer ``out_features`` to add in the network
-        :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+        :param quant_params: Quantization configuration dict,
+                             see :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         :param neuron: Spiking neuron configuration, see :meth:`qualia_plugin_snn.learningmodel.pytorch.SNN.SNN.__init__`
         :param timesteps: Number of timesteps
         """

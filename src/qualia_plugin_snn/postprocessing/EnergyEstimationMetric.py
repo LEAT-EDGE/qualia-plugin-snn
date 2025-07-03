@@ -15,12 +15,12 @@ from qualia_core.learningmodel.pytorch.layers import Add
 from qualia_core.learningmodel.pytorch.layers.GlobalSumPool1d import GlobalSumPool1d
 from qualia_core.learningmodel.pytorch.layers.GlobalSumPool2d import GlobalSumPool2d
 from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity, QuantizedLinear
+from qualia_core.learningmodel.pytorch.layers.quantized_layers1d import QuantizedBatchNorm1d, QuantizedConv1d
+from qualia_core.learningmodel.pytorch.layers.quantized_layers2d import QuantizedBatchNorm2d, QuantizedConv2d
 from qualia_core.learningmodel.pytorch.layers.QuantizedAdd import QuantizedAdd
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool1d import QuantizedGlobalSumPool1d
 from qualia_core.learningmodel.pytorch.layers.QuantizedGlobalSumPool2d import QuantizedGlobalSumPool2d
-from qualia_core.learningmodel.pytorch.quantized_layers1d import QuantizedBatchNorm1d, QuantizedConv1d
-from qualia_core.learningmodel.pytorch.quantized_layers2d import QuantizedBatchNorm2d, QuantizedConv2d
-from qualia_core.learningmodel.pytorch.Quantizer import Quantizer
+from qualia_core.learningmodel.pytorch.layers.Quantizer import Quantizer
 from qualia_core.postprocessing.PostProcessing import PostProcessing
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
 from qualia_core.utils.logger import Logger

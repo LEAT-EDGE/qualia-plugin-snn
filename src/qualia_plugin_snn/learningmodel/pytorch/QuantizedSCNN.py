@@ -8,7 +8,7 @@ import sys
 from collections import OrderedDict
 
 import numpy as np
-from qualia_core.learningmodel.pytorch import layers1d, layers2d
+from qualia_core.learningmodel.pytorch.layers import layers1d, layers2d
 from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
 from qualia_core.typing import TYPE_CHECKING
 from torch import nn
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     import torch
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
+    from qualia_core.learningmodel.pytorch.layers.Quantizer import QuantizationConfig
     from qualia_core.typing import RecursiveConfigDict
 
 if sys.version_info >= (3, 12):
@@ -88,7 +88,8 @@ class QuantizedSCNN(SNN):
         :param timesteps: Number of timesteps
         :param gsp: If ``True``, a single QuantizedGlobalSumPool layer is added instead of QuantizedLinear layers
         :param dims: Either 1 or 2 for 1D or 2D convolutional network.
-        :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+        :param quant_params: Quantization configuration dict,
+                             see :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         """
         # Prepend Quantized to the neuron kind to instantiate quantized spiking neurons
         if neuron is not None and 'kind' in neuron and isinstance(neuron['kind'], str):

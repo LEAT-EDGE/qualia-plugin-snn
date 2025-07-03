@@ -12,7 +12,7 @@ from spikingjelly.activation_based.base import StepModule  # type: ignore[import
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
 if TYPE_CHECKING:
     import torch
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
+    from qualia_core.learningmodel.pytorch.layers.Quantizer import QuantizationConfig
     from torch import nn
 
 if sys.version_info >= (3, 12):
@@ -37,7 +37,7 @@ class QuantizedLinear(quantized_layers.QuantizedLinear,
         :param out_features: Dimension of output vector and number of neurons
         :param bias: If ``True``, adds a learnable bias to the output.
         :param quant_params: Dict containing quantization parameters, see
-                             :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+                             :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         :param activation: Activation layer to fuse for quantization purposes, ``None`` if unfused or no activation
         :param step_mode: SpikingJelly's ``step_mode``, either ``'s'`` or ``'m'``, see
                           :class:`spikingjelly.activation_based.layer.Linear`

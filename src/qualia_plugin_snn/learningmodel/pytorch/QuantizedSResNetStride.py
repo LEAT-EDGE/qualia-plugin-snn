@@ -8,7 +8,7 @@ from typing import Protocol, cast
 
 import numpy as np
 import torch
-from qualia_core.learningmodel.pytorch import layers1d, layers2d
+from qualia_core.learningmodel.pytorch.layers import layers1d, layers2d
 from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
 from qualia_core.typing import TYPE_CHECKING
 from torch import nn
@@ -22,7 +22,7 @@ from .SNN import SNN
 if TYPE_CHECKING:
     from types import ModuleType
 
-    from qualia_core.learningmodel.pytorch.Quantizer import QuantizationConfig
+    from qualia_core.learningmodel.pytorch.layers.Quantizer import QuantizationConfig
     from qualia_core.typing import RecursiveConfigDict
 
 if sys.version_info >= (3, 12):
@@ -43,7 +43,7 @@ class CreateNeuron(Protocol):
         """Instanciate a spiking neuron.
 
         :param quant_params: Optional quantization configuration dict in case of quantized network, see
-                             :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+                             :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         :return: A spiking neuron instance
         """
         ...
@@ -148,7 +148,8 @@ class QuantizedBasicBlock(nn.Module):
         :param create_neuron: :meth:`qualia_plugin_snn.learningmodel.pytorch.SNN.SNN.create_neuron` method to instantiate a spiking
                               neuron
         :param step_mode: SpikingJelly ``step_mode`` from :attr:`qualia_plugin_snn.learningmodel.pytorch.SNN.SNN.step_mode`
-        :param quant_params: Quantization configuration dict, see :class:`qualia_core.learningmodel.pytorch.Quantizer.Quantizer`
+        :param quant_params: Quantization configuration dict,
+                             see :class:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer`
         """
         super().__init__()
         self.expansion = 1
