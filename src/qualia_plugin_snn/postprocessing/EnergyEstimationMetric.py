@@ -49,6 +49,7 @@ else:
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class SpikeCounter:
     """Holds the statistics and properties of an input or output tensor of a layer after inference.
@@ -65,6 +66,7 @@ class SpikeCounter:
     size: int
     binary: bool
     sample_count: int
+
 
 class EnergyEstimationMetricLoggerFields(NamedTuple):
     """Interface object for CSV logging.
@@ -90,7 +92,7 @@ class EnergyEstimationMetricLoggerFields(NamedTuple):
     #: Energy for potential memory read/write
     mem_pot: float
     #: Energy for weights memory read
-    mem_weights:float
+    mem_weights: float
     #: Energy for bias memory read
     mem_bias: float
     #: Energy for input/output memory read/write
@@ -119,6 +121,7 @@ class EnergyEstimationMetricLoggerFields(NamedTuple):
     output_is_binary: bool
     #: If the layer is a SpikingJelly layer and has been processed as part of a Spiking Neural Network
     is_sj: bool | Literal['Hybrid']
+
 
 @dataclass
 class EnergyMetrics:
@@ -197,6 +200,7 @@ class EnergyMetrics:
                                                   opsaddr=self.opsaddr,
                                                   total=self.total)
 
+
 class EnergyEstimationMetric(PostProcessing[nn.Module]):
     r"""Analytical energy estimation metric.
 
@@ -239,9 +243,6 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
     :meta public:
     """  # noqa: RUF001
 
-    #: CSV logger to record metrics for each layer in a file inside the `logs/<bench.name>/EnergyEstimationMetric` directory
-    csvlogger: Logger[EnergyEstimationMetricLoggerFields]
-
     def __init__(self,
                  mem_width: int,
                  fifo_size: int = 0,
@@ -262,23 +263,10 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         self._mem_width = mem_width
         self._fifo_size = fifo_size
         self._total_spikerate_exclude_nonbinary = total_spikerate_exclude_nonbinary
+        self._op_estimation_type = op_estimation_type
         self._set_energy_values(mem_width, op_estimation_type)
         self._sram_estimation_type = sram_estimation_type
 
-        # Initialize CSV suffix with the memory width, self_m_e_add, self_m_e_mul, op_estimation_type and sram_estimation_type
-        # without "{", "}", ":", ",", "'" or " " characters
-        suffix = f'mem{mem_width}bit_{self._m_e_add}_{self._m_e_mul}'
-        if op_estimation_type is not None:
-            suffix += f'_{op_estimation_type}'
-        else:
-            suffix += '_ICONIP'
-        if sram_estimation_type is not None:
-            suffix += f'_sram{sram_estimation_type}'
-        else:
-            suffix += '_sramICONIP'
-        suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(' ', '')
-        self.csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix + '.csv', formatter=CSVFormatter())
-        self.csvlogger.fields = EnergyEstimationMetricLoggerFields
 
     def _set_op_estimation_type(self, bit_width: int, op_type: str, op_estimation_type: str | int) -> float:
         """Set the estimation type for the energy values.
@@ -2085,6 +2073,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
         def e_rdram(x: int) -> float:
             return self._e_ram(x, self._mem_width)
+
         def e_wrram(x: int) -> float:
             return self._e_ram(x, self._mem_width)
         logger.info('Memory width set to %s bits', self._mem_width)
@@ -2116,8 +2105,24 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                                  e_rdram,
                                                  e_wrram)
 
+        # Initialize CSV suffix with the memory width, self_m_e_add, self_m_e_mul, op_estimation_type and sram_estimation_type
+        # without "{", "}", ":", ",", "'" or " " characters
+        suffix = f'_{trainresult.name}_mem{self._mem_width}bit_{self._m_e_add}_{self._m_e_mul}'
+        if self._op_estimation_type is not None:
+            suffix += f'_{self._op_estimation_type}'
+        else:
+            suffix += '_ICONIP'
+        if self._sram_estimation_type is not None:
+            suffix += f'_sram{self._sram_estimation_type}'
+        else:
+            suffix += '_sramICONIP'
+        suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(' ', '')
+
+        csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix + '.csv', formatter=CSVFormatter())
+        csvlogger.fields = EnergyEstimationMetricLoggerFields
+
         for em in ems:
-            self.csvlogger(em.asnamedtuple())
+            csvlogger(em.asnamedtuple())
 
         logger.info(('Estimated model energy consumption for one inference on 45nm ASIC (nJ)'
                     ' and spike rate per neuron per timestep:\n%s'),

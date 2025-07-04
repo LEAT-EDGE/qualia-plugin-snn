@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from typing import Literal, NamedTuple
 
 from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
-from qualia_core.utils.logger import CSVLogger
+from qualia_core.utils.logger import Logger
+from qualia_core.utils.logger.CSVFormatter import CSVFormatter
 
 from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
@@ -28,6 +29,7 @@ else:
     from typing_extensions import override
 
 logger = logging.getLogger(__name__)
+
 
 class OperationCounterLoggerFields(NamedTuple):
     """Interface object for CSV logging.
@@ -157,6 +159,7 @@ class OperationMetrics:
                                             total_acc=self.total_acc,
                                             total_mac=self.total_mac)
 
+
 class OperationCounter(EnergyEstimationMetric):
     r"""Operation counter metric.
 
@@ -186,9 +189,6 @@ class OperationCounter(EnergyEstimationMetric):
     * :class:`spikingjelly.activation_based.neuron.LIFNode` for spiking neural networks
     """
 
-    #: CSV logger to record metrics for each layer in a file inside the `logs/<bench.name>/OperationCounter` directory
-    operationcsvlogger: CSVLogger[OperationCounterLoggerFields]
-
     def __init__(self, total_spikerate_exclude_nonbinary: bool = True) -> None:  # noqa: FBT001, FBT002
         """Construct :class:`qualia_plugin_snn.postprocessing.OperationCounter.OperationCounter`.
 
@@ -197,9 +197,6 @@ class OperationCounter(EnergyEstimationMetric):
         super().__init__(mem_width=0,
                          fifo_size=1,
                          total_spikerate_exclude_nonbinary=total_spikerate_exclude_nonbinary)
-
-        self.operationcsvlogger = CSVLogger(name='OperationCounter')
-        self.operationcsvlogger.fields = OperationCounterLoggerFields
 
     def _compute_model_operations_fnn(self,
                                   modelgraph: ModelGraph) -> list[OperationMetrics]:
@@ -686,8 +683,11 @@ class OperationCounter(EnergyEstimationMetric):
         else:
             oms = self._compute_model_operations_fnn(modelgraph)
 
+        operationcsvlogger = Logger(name='OperationCounter', suffix=f'_{trainresult.name}.csv', formatter=CSVFormatter())
+        operationcsvlogger.fields = OperationCounterLoggerFields
+
         for om in oms:
-            self.operationcsvlogger(om.asnamedtuple())
+            operationcsvlogger(om.asnamedtuple())
 
         logger.info(('Estimated operation count for one inference and spike rate per neuron per timestep:\n%s'),
                     self._operations_summary(oms))
