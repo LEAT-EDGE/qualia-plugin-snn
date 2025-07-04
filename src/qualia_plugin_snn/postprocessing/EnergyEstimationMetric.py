@@ -2118,7 +2118,9 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
             suffix += '_sramICONIP'
         suffix = suffix.replace('{', '').replace('}', '').replace(':', '').replace(',', '').replace("'", '').replace(' ', '')
 
-        csvlogger = Logger(name='EnergyEstimationMetric', suffix=suffix + '.csv', formatter=CSVFormatter())
+        csvlogger: Logger[EnergyEstimationMetricLoggerFields] = Logger(name='EnergyEstimationMetric',
+                                                                       suffix=suffix + '.csv',
+                                                                       formatter=CSVFormatter())
         csvlogger.fields = EnergyEstimationMetricLoggerFields
 
         for em in ems:

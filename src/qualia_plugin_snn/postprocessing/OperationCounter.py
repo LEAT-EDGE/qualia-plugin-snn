@@ -683,7 +683,9 @@ class OperationCounter(EnergyEstimationMetric):
         else:
             oms = self._compute_model_operations_fnn(modelgraph)
 
-        operationcsvlogger = Logger(name='OperationCounter', suffix=f'_{trainresult.name}.csv', formatter=CSVFormatter())
+        operationcsvlogger: Logger[OperationCounterLoggerFields] = Logger(name='OperationCounter',
+                                                                          suffix=f'_{trainresult.name}.csv',
+                                                                          formatter=CSVFormatter())
         operationcsvlogger.fields = OperationCounterLoggerFields
 
         for om in oms:
