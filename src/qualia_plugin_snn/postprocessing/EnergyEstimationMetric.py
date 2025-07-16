@@ -29,7 +29,15 @@ from torch import nn
 
 from qualia_plugin_snn.learningframework.SpikingJelly import SpikingJelly
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.Add import Add as SNNAdd
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool1d import GlobalSumPool1d as SNNGlobalSumPool1d
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool2d import GlobalSumPool2d as SNNGlobalSumPool2d
 from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.QuantizedAdd import QuantizedAdd as SNNQuantizedAdd
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.QuantizedGlobalSumPool1d import (
+    QuantizedGlobalSumPool1d as SNNQuantizedGlobalSumPool1d,
+)
+from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.QuantizedGlobalSumPool2d import (
+    QuantizedGlobalSumPool2d as SNNQuantizedGlobalSumPool2d,
+)
 from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
@@ -1813,7 +1821,6 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
         input_spikerates = {n: sc.spike_count / sc.size for n, sc in if_inputs_spike_count_and_size.items()}
         output_spikerates = {n: sc.spike_count / sc.size for n, sc in if_outputs_spike_count_and_size.items()}
 
-
         # Dict for the input counts of each layers divided  by the batch size
         input_counts = {n: timesteps * sc.spike_count / sc.sample_count
                         for n, sc in if_inputs_spike_count_and_size.items()}
@@ -1910,10 +1917,12 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     sjl.Linear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
                                     sjl.MaxPool1d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool1d],
                                     sjl.MaxPool2d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool2d],
-                                    Add:  lambda *_: (TAddLayer, []),
-                                    SNNAdd:  lambda *_: (TAddLayer, []),
+                                    Add: lambda *_: (TAddLayer, []),
+                                    SNNAdd: lambda *_: (TAddLayer, []),
                                     GlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
+                                    SNNGlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
                                     GlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
+                                    SNNGlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
                                     QuantizedConv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
                                     QuantizedConv2d: TorchModelGraph.MODULE_MAPPING[nn.Conv2d],
                                     QuantizedBatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
@@ -1922,7 +1931,7 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
 
                                     QuantizedIdentity: TorchModelGraph.MODULE_MAPPING[nn.Identity],
                                     qsjl.QuantizedLinear: TorchModelGraph.MODULE_MAPPING[nn.Linear],
-                                    SNNQuantizedAdd:  lambda *_: (TAddLayer, []),
+                                    SNNQuantizedAdd: lambda *_: (TAddLayer, []),
                                     qsjl1d.QuantizedBatchNorm1d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm1d],
                                     qsjl2d.QuantizedBatchNorm2d: TorchModelGraph.MODULE_MAPPING[nn.BatchNorm2d],
                                     qsjl1d.QuantizedConv1d: TorchModelGraph.MODULE_MAPPING[nn.Conv1d],
@@ -1931,9 +1940,11 @@ class EnergyEstimationMetric(PostProcessing[nn.Module]):
                                     qsjl2d.QuantizedMaxPool2d: TorchModelGraph.MODULE_MAPPING[nn.MaxPool2d],
                                     qsjn.QuantizedIFNode: TorchModelGraph.MODULE_MAPPING[sjn.IFNode],
                                     qsjn.QuantizedLIFNode: TorchModelGraph.MODULE_MAPPING[sjn.LIFNode],
-                                    QuantizedAdd:  lambda *_: (TAddLayer, []),
+                                    QuantizedAdd: lambda *_: (TAddLayer, []),
                                     QuantizedGlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
+                                    SNNQuantizedGlobalSumPool1d: lambda *_: (TSumLayer, [(-1,)]),
                                     QuantizedGlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
+                                    SNNQuantizedGlobalSumPool2d: lambda *_: (TSumLayer, [(-2, -1)]),
                                     }
 
         orig_step_mode: str = getattr(model, 'step_mode', '')

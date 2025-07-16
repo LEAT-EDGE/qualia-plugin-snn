@@ -74,9 +74,9 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         * :class:`spikingjelly.activation_based.layer.Linear`, handled like a :class:`torch.nn.Linear`
         * :class:`qualia_core.learningmodel.pytorch.layers.Add.Add`, mapped to a
           :class:`qualia_codegen_core.graph.layers.TAddLayer.TAddLayer`
-        * :class:`qualia_core.learningmodel.pytorch.layers.GlobalSumPool1d.GlobalSumPool1d`, mapped to a
+        * :class:`qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool1d.GlobalSumPool1d`, mapped to a
           :class:`qualia_codegen_core.graph.layers.TSumLayer.TSumLayer`
-        * :class:`qualia_core.learningmodel.pytorch.layers.GlobalSumPool2d.GlobalSumPool2d`, mapped to a
+        * :class:`qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool2d.GlobalSumPool2d`, mapped to a
           :class:`qualia_codegen_core.graph.layers.TSumLayer.TSumLayer`
 
         SpikingJelly ``step_mode`` is forced to ``'s'`` for single-step operation to simplify visit of the graph.
@@ -88,8 +88,11 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         import spikingjelly.activation_based.layer as sjl  # type: ignore[import-untyped]
         from qualia_codegen_core.graph.layers import TAddLayer, TBaseLayer, TSumLayer
         from qualia_codegen_plugin_snn.graph import TorchModelGraph
-        from qualia_core.learningmodel.pytorch.layers import Add, GlobalSumPool1d, GlobalSumPool2d
+        from qualia_core.learningmodel.pytorch.layers import Add
         from torch import nn
+
+        from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool1d import GlobalSumPool1d
+        from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool2d import GlobalSumPool2d
 
         custom_layers: dict[type[nn.Module], Callable[[nn.Module, TBaseLayer], tuple[type[TBaseLayer], list[Any]]]] = {
                 sjl.AvgPool1d: TorchModelGraph.MODULE_MAPPING[nn.AvgPool1d],

@@ -5,16 +5,20 @@ from spikingjelly.activation_based.layer import BatchNorm2d as BatchNorm
 from spikingjelly.activation_based.layer import Conv2d as Conv
 from spikingjelly.activation_based.layer import MaxPool2d as MaxPool
 
+from .GlobalSumPool2d import GlobalSumPool2d as GlobalSumPool
 from .quantized_layers2d import QuantizedBatchNorm2d as QuantizedBatchNorm
 from .quantized_layers2d import QuantizedConv2d as QuantizedConv
 from .quantized_layers2d import QuantizedMaxPool2d as QuantizedMaxPool
+from .QuantizedGlobalSumPool2d import QuantizedGlobalSumPool2d as QuantizedGlobalSumPool
 
 __all__ = [
-           'AvgPool',
-           'BatchNorm',
-           'Conv',
-           'MaxPool',
-           'QuantizedBatchNorm',
-           'QuantizedConv',
-           'QuantizedMaxPool',
+    'AvgPool',
+    'BatchNorm',
+    'Conv',
+    'GlobalSumPool',
+    'MaxPool',
+    'QuantizedBatchNorm',
+    'QuantizedConv',
+    'QuantizedGlobalSumPool',
+    'QuantizedMaxPool',
 ]

@@ -8,7 +8,6 @@ from typing import Protocol, cast
 
 import numpy as np
 import torch
-from qualia_core.learningmodel.pytorch.layers import layers1d, layers2d
 from qualia_core.learningmodel.pytorch.layers.quantized_layers import QuantizedIdentity
 from qualia_core.typing import TYPE_CHECKING
 from torch import nn
@@ -263,7 +262,7 @@ class QuantizedSResNetStride(SNN):
     replaced with their quantized equivalent.
     """
 
-    def __init__(self,  # noqa: C901, PLR0912, PLR0913, PLR0915
+    def __init__(self,  # noqa: C901, PLR0912, PLR0913
                  input_shape: tuple[int, ...],
                  output_shape: tuple[int, ...],
                  filters: list[int],
@@ -361,13 +360,10 @@ class QuantizedSResNetStride(SNN):
 
         from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.quantized_layers import QuantizedLinear
 
-        layers_t: ModuleType
         sjlayers_t: ModuleType
         if dims == 1:
-            layers_t = layers1d
             sjlayers_t = sjlayers1d
         elif dims == 2:  # noqa: PLR2004
-            layers_t = layers2d
             sjlayers_t = sjlayers2d
         else:
             logger.error('Only dims=1 or dims=2 supported, got: %s', dims)
@@ -444,7 +440,7 @@ class QuantizedSResNetStride(SNN):
                                                   quant_params=quant_params,
                                                   step_mode=self.step_mode)
             self.neuron2 = self.create_neuron(quant_params=quant_params)
-            self.gsp = layers_t.QuantizedGlobalSumPool(quant_params=quant_params)
+            self.gsp = sjlayers_t.QuantizedGlobalSumPool(quant_params=quant_params, step_mode=self.step_mode)
         else:
             # GlobalMaxPool kernel_size computation
             self._fm_dims = np.array(input_shape[:-1]) // np.array(prepool)

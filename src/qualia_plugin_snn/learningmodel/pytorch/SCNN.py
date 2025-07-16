@@ -9,7 +9,6 @@ from collections import OrderedDict
 
 import numpy as np
 import torch
-from qualia_core.learningmodel.pytorch.layers import layers1d, layers2d
 from qualia_core.typing import TYPE_CHECKING
 from torch import nn
 
@@ -118,14 +117,11 @@ class SCNN(SNN):
 
         from spikingjelly.activation_based.layer import Dropout, Flatten, Linear  # type: ignore[import-untyped]
 
-        layers_t: ModuleType
         sjlayers_t: ModuleType
 
         if dims == 1:
-            layers_t = layers1d
             sjlayers_t = sjlayers1d
         elif dims == 2:  # noqa: PLR2004
-            layers_t = layers2d
             sjlayers_t = sjlayers2d
         else:
             logger.error('Only dims=1 or dims=2 supported, got: %s', dims)
@@ -220,7 +216,7 @@ class SCNN(SNN):
                                                  bias=True,
                                                  step_mode=self.step_mode)
             layers[f'neuron{i}'] = self.create_neuron()
-            layers['gsp'] = layers_t.GlobalSumPool()
+            layers['gsp'] = sjlayers_t.GlobalSumPool(step_mode=self.step_mode)
         else:
             layers['flatten'] = Flatten(step_mode=self.step_mode)
 
