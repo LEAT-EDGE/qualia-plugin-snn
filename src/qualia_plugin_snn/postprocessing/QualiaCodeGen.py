@@ -88,9 +88,9 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         import spikingjelly.activation_based.layer as sjl  # type: ignore[import-untyped]
         from qualia_codegen_core.graph.layers import TAddLayer, TBaseLayer, TSumLayer
         from qualia_codegen_plugin_snn.graph import TorchModelGraph
-        from qualia_core.learningmodel.pytorch.layers import Add
         from torch import nn
 
+        from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.Add import Add
         from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool1d import GlobalSumPool1d
         from qualia_plugin_snn.learningmodel.pytorch.layers.spikingjelly.GlobalSumPool2d import GlobalSumPool2d
 
