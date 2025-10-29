@@ -6,14 +6,26 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import numpy as np
+from qualia_core.datamodel.RawDataModel import RawDataDType, RawDataShape
+from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]
 
-from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataInfo, EventDataInfoRecord, EventDataModel, EventDataSets
+from qualia_plugin_snn.datamodel.EventDataModel import (
+    EventData,
+    EventDataChunks,
+    EventDataChunksModel,
+    EventDataChunksSets,
+    EventDataInfo,
+    EventDataInfoRecord,
+)
 
-from .EventDataset import EventDataset
+from .EventDataset import EventDatasetChunks
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -22,14 +34,16 @@ else:
 
 logger = logging.getLogger(__name__)
 
-class DVSGesture(EventDataset):
+
+class DVSGesture(EventDatasetChunks):
     """DVS128 Gesture event-based data loading based on SpikingJelly."""
 
     h: int = 128
     w: int = 128
+    dtype = np.dtype([('t', np.int64), ('y', np.int8), ('x', np.int8), ('p', np.bool_)])
 
     def __init__(self,
-                 path: str='',
+                 path: str = '',
                  data_type: str = 'frame') -> None:
         """Instantiate the DVS128 Gesture dataset loader.
 
@@ -52,52 +66,38 @@ class DVSGesture(EventDataset):
                              train=train,
                              data_type='event')
 
-    def __dvs128gesture_to_event_data(self, dvs128gesture: DVS128Gesture) -> EventData:
+    def __dvs128gesture_to_event_data(self, dvs128gesture: DVS128Gesture) -> Generator[EventData]:
         """Load events using SpikingJelly loader and fill event-based data structure.
 
         :param dvs128gesture: SpikingJelly DVS128Gesture loader
-        :return: Event data with timestamps, x and y coordinates, polarity, label, and sample indices
+        :yield: Event data with timestamps, x and y coordinates, polarity, label, and sample indices
         """
         start = time.time()
-
-        t: list[np.ndarray[Any, np.dtype[np.int64]]] = []
-        y: list[np.ndarray[Any, np.dtype[np.int8]]] = []
-        x: list[np.ndarray[Any, np.dtype[np.int8]]] = []
-        p: list[np.ndarray[Any, np.dtype[np.bool_]]] = []
-        labels: list[np.ndarray[Any, np.dtype[np.int8]]] = []
 
         # Couple of begin and end indices for each sample in concatenated array
         sample_indices = EventDataInfo((len(dvs128gesture),))
 
-        first = 0
-        last = 0
-        for i, sample in enumerate(dvs128gesture):
-            t.append(sample[0]['t'].astype(np.int64))
-            y.append(sample[0]['y'].astype(np.int8))
-            x.append(sample[0]['x'].astype(np.int8))
-            p.append(sample[0]['p'].astype(np.bool_))
-            labels.append(np.full(sample[0]['t'].shape[0], sample[1], dtype=np.int8))
+        for sample in dvs128gesture:
+            t = sample[0]['t'].astype(np.int64)
+            y = sample[0]['y'].astype(np.int8)
+            x = sample[0]['x'].astype(np.int8)
+            p = sample[0]['p'].astype(np.bool_)
+            labels = np.full(sample[0]['t'].shape[0], sample[1], dtype=np.int8)
 
-            last += len(t[-1])
-            cast('EventDataInfoRecord', sample_indices[i]).begin = np.int64(first)
-            cast('EventDataInfoRecord', sample_indices[i]).end = np.int64(last)
-            first = last
+            data = np.rec.fromarrays([t, y, x, p],
+                    dtype=self.dtype)
 
-        t_array = np.concatenate(t)
-        y_array = np.concatenate(y)
-        x_array = np.concatenate(x)
-        p_array = np.concatenate(p)
-        labels_array = np.concatenate(labels)
+            # Each chunk corresponds to a single sample
+            sample_indices = EventDataInfo((1,))
+            cast('EventDataInfoRecord', sample_indices[0]).begin = np.int64(0)
+            cast('EventDataInfoRecord', sample_indices[0]).end = t.shape[0]
 
-
-        data = np.rec.fromarrays([t_array, y_array, x_array, p_array],
-                dtype=np.dtype([('t', np.int64), ('y', np.int8), ('x', np.int8), ('p', np.bool_)]))
+            yield EventData(data, labels, sample_indices)
 
         logger.info('Loading finished in %s s.', time.time() - start)
-        return EventData(data, labels_array, info=sample_indices)
 
     @override
-    def __call__(self) -> EventDataModel:
+    def __call__(self) -> EventDataChunksModel:
         """Load DVS128 Gesture data as events.
 
         :return: Data model structure with train and test sets containing events and labels
@@ -109,17 +109,17 @@ class DVSGesture(EventDataset):
         train_dvs128gesture = self.__load_dvs128gesture(train=True)
         test_dvs128gesture = self.__load_dvs128gesture(train=False)
 
-        trainset = self.__dvs128gesture_to_event_data(train_dvs128gesture)
-        testset = self.__dvs128gesture_to_event_data(test_dvs128gesture)
+        shapes = RawDataShape(x=(None,), y=(None,))
+        dtypes = RawDataDType(x=self.dtype, y=np.dtype(np.uint8))
 
+        trainset = EventDataChunks(chunks=self.__dvs128gesture_to_event_data(train_dvs128gesture),
+                                   shapes=shapes,
+                                   dtypes=dtypes)
+        testset = EventDataChunks(chunks=self.__dvs128gesture_to_event_data(test_dvs128gesture),
+                                  shapes=shapes,
+                                  dtypes=dtypes)
 
-        logger.info('Shapes: train_x=%s, train_y=%s, test_x=%s, test_y=%s',
-                    trainset.x.shape if trainset.x is not None else None,
-                    trainset.y.shape if trainset.y is not None else None,
-                    testset.x.shape if testset.x is not None else None,
-                    testset.y.shape if testset.y is not None else None)
-
-        return EventDataModel(sets=EventDataSets(train=trainset, test=testset),
+        return EventDataChunksModel(sets=EventDataChunksSets(train=trainset, test=testset),
                               name=self.name,
                               h=self.h,
                               w=self.w)
