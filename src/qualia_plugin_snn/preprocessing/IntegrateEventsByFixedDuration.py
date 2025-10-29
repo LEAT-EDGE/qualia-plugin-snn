@@ -8,13 +8,21 @@ import time
 from typing import Any, cast
 
 import numpy as np
-from qualia_core.datamodel.RawDataModel import RawData, RawDataModel, RawDataSets
+from qualia_core.datamodel.RawDataModel import (
+    RawData,
+    RawDataChunks,
+    RawDataChunksModel,
+    RawDataChunksSets,
+    RawDataDType,
+    RawDataModel,
+    RawDataShape,
+)
 from qualia_core.learningframework.PyTorch import PyTorch
 from qualia_core.preprocessing.Preprocessing import Preprocessing
 from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.datasets import integrate_events_segment_to_frame  # type: ignore[import-untyped]
 
-from qualia_plugin_snn.datamodel.EventDataModel import EventDataModel
+from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataChunks, EventDataModel
 
 if TYPE_CHECKING:
     from qualia_core.dataset.Dataset import Dataset
@@ -67,11 +75,10 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                                            w: int,
                                            left: np.intp,
                                            right: np.intp) -> np.ndarray[Any, np.dtype[np.float32]]:
-        if not hasattr(events, 'y'): # No y means 1D data
+        if not hasattr(events, 'y'):  # No y means 1D data
             return self.__integrate_events_segment_to_frame_1d(events.x, events.p, w, left, right)
         return cast('np.ndarray[Any, np.dtype[np.float32]]',
                     integrate_events_segment_to_frame(events.x, events.y, events.p, h, w, left, right))
-
 
     # Adapted from SpikingJelly
     def __integrate_events_by_fixed_duration(self,
@@ -97,7 +104,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
         events.t -= events.t.min()
 
         frames_num = int(np.ceil(events.t[-1] / self.__duration))
-        if not hasattr(events, 'y'): # 1D Data
+        if not hasattr(events, 'y'):  # 1D Data
             frames = np.zeros([frames_num, 2, w], dtype=np.float32)
         else:
             frames = np.zeros([frames_num, 2, h, w], dtype=np.float32)
@@ -124,6 +131,66 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
         return frames, reduced_labels
 
+    def __handle_chunk(self, s: EventData, sname: str, h: int, w: int) -> RawData:
+        start = time.time()
+
+        if s.info is None:
+            logger.error('Info for %s must be defined', sname)
+            raise ValueError
+
+        data_list: list[np.ndarray[Any, np.dtype[np.float32]]] = []
+        labels_list: list[np.ndarray[Any, Any]] = []
+        info_list: list[tuple[int, int]] = []
+
+        first = 0
+        last = 0
+        for sample in s.info:  # For each input sample
+            # recarray.__getitem__ should return a recarray bus is not type-hinted as such and inherits ndarray type hint
+            events = cast('np.recarray[Any, Any]', s.x[sample.begin:sample.end])
+
+            data, labels = self.__integrate_events_by_fixed_duration(
+                    events=events,
+                    labels=s.y[sample.begin:sample.end],
+                    h=h,
+                    w=w)
+
+            # channels_first to channels_last: N, C, H, W → N, H, W, C or N, C, S → N, S, C
+            data = PyTorch.channels_first_to_channels_last(data)
+
+            data_list.append(data)
+            labels_list.append(labels)
+
+            # Record new begin and end indices of sample in data array to info array
+            last += len(data)
+            info_list.append((first, last))
+            first = last
+
+        data_array = np.concatenate(data_list)
+        labels_array = np.concatenate(labels_list)
+        info_array = np.rec.array(info_list, dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
+
+        logger.info('Event integration finished in %s s.', time.time() - start)
+        logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
+                    sname, data_array.shape,
+                    sname, labels_array.shape,
+                    sname, info_array.shape)
+
+
+        return RawData(x=data_array,
+                                y=labels_array,
+                                info=info_array)
+
+    def __handle_chunks(self, s: EventData | EventDataChunks, sname: str, h: int, w: int) -> RawData | RawDataChunks:
+        if isinstance(s, EventDataChunks):
+            shapes = RawDataShape(x=(None, h, w, 2), y=(None,))
+            dtypes = RawDataDType(x=np.dtype(np.float32), y=np.dtype(np.int64))
+
+            return RawDataChunks(chunks=(self.__handle_chunk(chunk, sname, h=h, w=w) for chunk in s.chunks),
+                                 shapes=shapes,
+                                 dtypes=dtypes)
+
+        return self.__handle_chunk(s, sname, h=h, w=w)
+
 
     @override
     def __call__(self, datamodel: EventDataModel) -> RawDataModel:
@@ -139,61 +206,16 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
         :param datamodel: The input event-based dataset
         :return: The new frame dataset
         """
-        start = time.time()
+        sets: dict[str, RawData | RawDataChunks] = {}
+        for sname, s in datamodel:
+            sets[sname] = self.__handle_chunks(s, sname, h=datamodel.h, w=datamodel.w)
 
-        sets: dict[str, RawData] = {}
-        for name, s in datamodel:
-            if s.info is None:
-                logger.error('Info for %s must be defined', name)
-                raise ValueError
-
-            data_list: list[np.ndarray[Any, np.dtype[np.float32]]] = []
-            labels_list: list[np.ndarray[Any, Any]] = []
-            info_list: list[tuple[int, int]] = []
-
-            first = 0
-            last = 0
-            for sample in s.info:  # For each input sample
-                # recarray.__getitem__ should return a recarray bus is not type-hinted as such and inherits ndarray type hint
-                events = cast('np.recarray[Any, Any]', s.x[sample.begin:sample.end])
-
-                data, labels = self.__integrate_events_by_fixed_duration(
-                        events=events,
-                        labels=s.y[sample.begin:sample.end],
-                        h=datamodel.h,
-                        w=datamodel.w)
-
-                # channels_first to channels_last: N, C, H, W → N, H, W, C or N, C, S → N, S, C
-                data = PyTorch.channels_first_to_channels_last(data)
-
-                data_list.append(data)
-                labels_list.append(labels)
-
-                # Record new begin and end indices of sample in data array to info array
-                last += len(data)
-                info_list.append((first, last))
-                first = last
-
-            data_array = np.concatenate(data_list)
-            labels_array = np.concatenate(labels_list)
-            info_array = np.rec.array(info_list, dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
-
-            logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
-                        name, data_array.shape,
-                        name, labels_array.shape,
-                        name, info_array.shape)
-
-            sets[name] = RawData(x=data_array,
-                                 y=labels_array,
-                                 info=info_array)
-
-        logger.info('Event integration finished in %s s.', time.time() - start)
-        return RawDataModel(sets=RawDataSets(**sets), name=datamodel.name)
+        return RawDataChunksModel(sets=RawDataChunksSets(**sets), name=datamodel.name)
 
     @override
     def import_data(self, dataset: Dataset[Any]) -> Dataset[Any]:
         def func() -> RawDataModel:
-            rdm = RawDataModel(name=dataset.name)
+            rdm = RawDataChunksModel(name=dataset.name)
             rdm.import_sets(set_names=dataset.sets)
             return rdm
         dataset.import_data = func  # type: ignore[method-assign]
