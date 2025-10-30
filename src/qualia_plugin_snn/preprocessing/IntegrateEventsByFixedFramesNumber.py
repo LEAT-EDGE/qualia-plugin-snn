@@ -8,7 +8,7 @@ import time
 from typing import Any, cast
 
 import numpy as np
-from qualia_core.datamodel.RawDataModel import RawData, RawDataModel, RawDataSets
+from qualia_core.datamodel.RawDataModel import RawData, RawDataChunksModel, RawDataModel
 from qualia_core.learningframework.PyTorch import PyTorch
 from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.datasets import cal_fixed_frames_number_segment_index  # type: ignore[import-untyped]
@@ -16,9 +16,7 @@ from spikingjelly.datasets import cal_fixed_frames_number_segment_index  # type:
 from .IntegrateEventsByFixedDuration import IntegrateEventsByFixedDuration
 
 if TYPE_CHECKING:
-    from qualia_core.dataset.Dataset import Dataset
-
-    from qualia_plugin_snn.datamodel.EventDataModel import EventDataModel
+    from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataChunksModel, EventDataModel
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -64,7 +62,7 @@ class IntegrateEventsByFixedFramesNumber(IntegrateEventsByFixedDuration):
         """
         j_l, j_r = cal_fixed_frames_number_segment_index(events.t, self.__split_by, self.__frames_num)
 
-        if not hasattr(events, 'y'): # 1D Data
+        if not hasattr(events, 'y'):  # 1D Data
             frames = np.zeros([self.__frames_num, 2, w], dtype=np.float32)
         else:
             frames = np.zeros([self.__frames_num, 2, h, w], dtype=np.float32)
@@ -81,7 +79,56 @@ class IntegrateEventsByFixedFramesNumber(IntegrateEventsByFixedDuration):
         return frames, reduced_labels
 
     @override
-    def __call__(self, datamodel: EventDataModel) -> RawDataModel:
+    def _handle_chunk(self, s: EventData, sname: str, h: int, w: int) -> RawData:
+        start = time.time()
+
+        if s.info is None:
+            logger.error('Info for %s must be defined', sname)
+            raise ValueError
+
+        data_list: list[np.ndarray[Any, np.dtype[np.float32]]] = []
+        labels_list: list[np.ndarray[Any, Any]] = []
+        info_list: list[tuple[int, int]] = []
+
+        first = 0
+        last = 0
+        for sample in s.info:  # For each input sample
+            # recarray.__getitem__ should return a recarray bus is not type-hinted as such and inherits ndarray type hint
+            events = cast('np.recarray[Any, Any]', s.x[sample.begin:sample.end])
+
+            data, labels = self.__integrate_events_by_fixed_frames_number(
+                    events=events,
+                    labels=s.y[sample.begin:sample.end],
+                    h=h,
+                    w=w)
+
+            # channels_first to channels_last: N, C, H, W → N, H, W, C or N, C, S → N, S, C
+            data = PyTorch.channels_first_to_channels_last(data)
+
+            data_list.append(data)
+            labels_list.append(labels)
+
+            # Record new begin and end indices of sample in data array to info array
+            last += len(data)
+            info_list.append((first, last))
+            first = last
+
+        data_array = np.concatenate(data_list)
+        labels_array = np.concatenate(labels_list)
+        info_array = np.rec.array(info_list, dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
+
+        logger.info('Event integration finished in %s s.', time.time() - start)
+        logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
+                    sname, data_array.shape,
+                    sname, labels_array.shape,
+                    sname, info_array.shape)
+
+        return RawData(x=data_array,
+                       y=labels_array,
+                       info=info_array)
+
+    @override
+    def __call__(self, datamodel: EventDataModel | EventDataChunksModel) -> RawDataModel | RawDataChunksModel:
         """Construct frames from events of the same sample of a :class:`qualia_plugin_snn.datamodel.EventDataModel.EventDataModel`.
 
         Relies on sample indices (begin, end) from the info array to only collect events from the same sample.
@@ -94,62 +141,4 @@ class IntegrateEventsByFixedFramesNumber(IntegrateEventsByFixedDuration):
         :param datamodel: The input event-based dataset
         :return: The new frame dataset
         """
-        start = time.time()
-
-        sets: dict[str, RawData] = {}
-        for name, s in datamodel:
-            if s.info is None:
-                logger.error('Info for %s must be defined', name)
-                raise ValueError
-
-            data_list: list[np.ndarray[Any, np.dtype[np.float32]]] = []
-            labels_list: list[np.ndarray[Any, Any]] = []
-            info_list: list[tuple[int, int]] = []
-
-            first = 0
-            last = 0
-            for sample in s.info:  # For each input sample
-                # recarray.__getitem__ should return a recarray bus is not type-hinted as such and inherits ndarray type hint
-                events = cast('np.recarray[Any, Any]', s.x[sample.begin:sample.end])
-
-                data, labels = self.__integrate_events_by_fixed_frames_number(
-                        events=events,
-                        labels=s.y[sample.begin:sample.end],
-                        h=datamodel.h,
-                        w=datamodel.w)
-
-                # channels_first to channels_last: N, C, H, W → N, H, W, C or N, C, S → N, S, C
-                data = PyTorch.channels_first_to_channels_last(data)
-
-                data_list.append(data)
-                labels_list.append(labels)
-
-                # Record new begin and end indices of sample in data array to info array
-                last += len(data)
-                info_list.append((first, last))
-                first = last
-
-            data_array = np.concatenate(data_list)
-            labels_array = np.concatenate(labels_list)
-            info_array = np.rec.array(info_list, dtype=np.dtype([('begin', np.int64), ('end', np.int64)]))
-
-            logger.info('Shapes: %s_x=%s, %s_y=%s, %s_info=%s',
-                        name, data_array.shape,
-                        name, labels_array.shape,
-                        name, info_array.shape)
-
-            sets[name] = RawData(x=data_array,
-                                 y=labels_array,
-                                 info=info_array)
-
-        logger.info('Event integration finished in %s s.', time.time() - start)
-        return RawDataModel(sets=RawDataSets(**sets), name=datamodel.name)
-
-    @override
-    def import_data(self, dataset: Dataset[Any]) -> Dataset[Any]:
-        def func() -> RawDataModel:
-            rdm = RawDataModel(name=dataset.name)
-            rdm.import_sets(set_names=dataset.sets)
-            return rdm
-        dataset.import_data = func  # type: ignore[method-assign]
-        return dataset
+        return super().__call__(datamodel)
