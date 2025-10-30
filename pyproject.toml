@@ -9,7 +9,7 @@ authors = [
 ]
 description = "Qualia SNN Plugin"
 readme = "README.md"
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.9,<3.15"
 license.text = "AGPL-3.0-or-later"
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -94,7 +94,7 @@ report_progress = true
 [tool.pyright]
 include = ["src"]
 exclude = ["**/third_party", "**/examples"]
-pythonVersion = "3.9"
+pythonVersion = "3.13"
 typeCheckingMode = "strict"
 reportCallInDefaultInitializer = "warning"
 reportImplicitOverride = "warning"
