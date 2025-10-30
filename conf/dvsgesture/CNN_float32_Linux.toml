@@ -42,6 +42,7 @@ params.timesteps = 8
 
 [[preprocessing]]
 kind = "Class2BinMatrix"
+params.classes = 11
 
 [[data_augmentation]]
 kind = "Mixup"
