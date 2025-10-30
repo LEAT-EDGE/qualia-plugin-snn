@@ -39,6 +39,7 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
                  long_width: int | None = None,
                  outdir: str | None = None,
                  metrics: list[str] | None = None,
+                 model_name: str = 'cnn',
                  dump_featuremaps: bool = False,  # noqa: FBT001, FBT002
                  timestep_mode: Literal['duplicate', 'iterate'] = 'duplicate') -> None:
         """Construct :class:`qualia_plugin_snn.postprocessing.QualiaCodeGen.QualiaCodeGen`.
@@ -49,6 +50,7 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         :param long_width: Long number bit width
         :param outdir: Output directory
         :param metrics: List of metrics to implement
+        :param model_name: Model name to assign to the main inference function, default is ``'cnn'``
         :param dump_featuremaps: Generate code in model call chain to dump output of all layers to JSON files
         :param timestep_mode: Input timestep handling mode, either ``'duplicate'`` to duplicate static input data over timesteps,
             or ``'iterate'`` to iterate over existing input data timestep dimension
@@ -57,6 +59,7 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
                          long_width=long_width,
                          outdir=outdir,
                          metrics=metrics,
+                         model_name=model_name,
                          dump_featuremaps=dump_featuremaps)
         self._timestep_mode = timestep_mode
 
@@ -127,5 +130,8 @@ class QualiaCodeGen(qualia_core.postprocessing.QualiaCodeGen):
         :return: String containing the single-file C code
         """
         from qualia_codegen_plugin_snn import Converter
-        converter = Converter(output_path=output_path, timestep_mode=self._timestep_mode, dump_featuremaps=self._dump_featuremaps)
+        converter = Converter(output_path=output_path,
+                              model_name=self._model_name,
+                              timestep_mode=self._timestep_mode,
+                              dump_featuremaps=self._dump_featuremaps)
         return converter.convert_model(modelgraph)
