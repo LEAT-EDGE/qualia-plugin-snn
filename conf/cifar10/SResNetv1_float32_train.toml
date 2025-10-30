@@ -22,6 +22,7 @@ params.path = "data/cifar-10-batches-py/"
 
 [[preprocessing]]
 kind = "Class2BinMatrix"
+params.classes = 10
 
 [[preprocessing]]
 kind = "Normalize"

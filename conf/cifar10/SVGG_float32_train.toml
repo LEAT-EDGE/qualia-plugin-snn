@@ -53,6 +53,7 @@ params.size = [32, 32]
 
 [[preprocessing]]
 kind = "Class2BinMatrix"
+params.classes = 10
 
 [model_template]
 kind                = "SCNN"

@@ -63,6 +63,7 @@ params.after = true # Run on GPU
 
 [[preprocessing]]
 kind = "Class2BinMatrix"
+params.classes = 10
 
 [[postprocessing]]
 kind = "FuseBatchNorm"
