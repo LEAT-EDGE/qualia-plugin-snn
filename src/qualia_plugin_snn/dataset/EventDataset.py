@@ -36,7 +36,7 @@ class EventDataset(Dataset[EventData]):
         return edm
 
 
-class EventDatasetChunks(Dataset[EventDataChunks]):
+class EventDatasetChunks(Dataset[EventDataChunks, EventData]):
     """Generic superclass for event-based datasets."""
 
     h: int
@@ -53,6 +53,5 @@ class EventDatasetChunks(Dataset[EventDataChunks]):
         Relies on :meth:`qualia_plugin_snn.datamodel.EventDataModel.import_data`
         :return: Data model with imported data
         """
-        edm = EventDataModel(name=self.name, h=self.h, w=self.w)
-        edm.import_sets(set_names=self.sets)
-        return edm
+        edm = EventDataChunksModel(name=self.name, h=self.h, w=self.w)
+        return edm.import_sets(set_names=self.sets)

@@ -6,7 +6,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import cast
+from typing import Final, cast
 
 import numpy as np
 from qualia_core.datamodel.RawDataModel import RawDataDType, RawDataShape
@@ -40,7 +40,7 @@ class DVSGesture(EventDatasetChunks):
 
     h: int = 128
     w: int = 128
-    dtype = np.dtype([('t', np.int64), ('y', np.int8), ('x', np.int8), ('p', np.bool_)])
+    dtype: Final[np.dtype] = np.dtype([('t', np.int64), ('y', np.int8), ('x', np.int8), ('p', np.bool_)])
 
     def __init__(self,
                  path: str = '',

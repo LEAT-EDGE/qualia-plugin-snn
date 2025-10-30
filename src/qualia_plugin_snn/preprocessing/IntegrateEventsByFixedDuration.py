@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
-from typing import Any, cast
+from typing import Any, Union, cast
 
 import numpy as np
 from qualia_core.datamodel.RawDataModel import (
@@ -15,6 +15,7 @@ from qualia_core.datamodel.RawDataModel import (
     RawDataChunksSets,
     RawDataDType,
     RawDataModel,
+    RawDataSets,
     RawDataShape,
 )
 from qualia_core.learningframework.PyTorch import PyTorch
@@ -22,7 +23,8 @@ from qualia_core.preprocessing.Preprocessing import Preprocessing
 from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.datasets import integrate_events_segment_to_frame  # type: ignore[import-untyped]
 
-from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataChunks, EventDataModel
+from qualia_plugin_snn.datamodel.EventDataModel import EventData, EventDataChunks, EventDataChunksModel, EventDataModel
+from qualia_plugin_snn.dataset.EventDataset import EventDatasetChunks
 
 if TYPE_CHECKING:
     from qualia_core.dataset.Dataset import Dataset
@@ -35,7 +37,8 @@ else:
 logger = logging.getLogger(__name__)
 
 
-class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]):
+class IntegrateEventsByFixedDuration(Preprocessing[Union[EventDataModel, EventDataChunksModel],
+                                     Union[RawDataModel, RawDataChunksModel]]):
     """Preprocessing module to construct fixed-duration frames from event data."""
 
     def __init__(self, duration: int) -> None:
@@ -131,7 +134,7 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
 
         return frames, reduced_labels
 
-    def __handle_chunk(self, s: EventData, sname: str, h: int, w: int) -> RawData:
+    def _handle_chunk(self, s: EventData, sname: str, h: int, w: int) -> RawData:
         start = time.time()
 
         if s.info is None:
@@ -175,25 +178,20 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
                     sname, labels_array.shape,
                     sname, info_array.shape)
 
-
         return RawData(x=data_array,
                                 y=labels_array,
                                 info=info_array)
 
-    def __handle_chunks(self, s: EventData | EventDataChunks, sname: str, h: int, w: int) -> RawData | RawDataChunks:
-        if isinstance(s, EventDataChunks):
-            shapes = RawDataShape(x=(None, h, w, 2), y=(None,))
-            dtypes = RawDataDType(x=np.dtype(np.float32), y=np.dtype(np.int64))
+    def __handle_chunks(self, s: EventDataChunks, sname: str, h: int, w: int) -> RawDataChunks:
+        shapes = RawDataShape(x=(None, h, w, 2), y=(None,))
+        dtypes = RawDataDType(x=np.dtype(np.float32), y=np.dtype(np.int64))
 
-            return RawDataChunks(chunks=(self.__handle_chunk(chunk, sname, h=h, w=w) for chunk in s.chunks),
-                                 shapes=shapes,
-                                 dtypes=dtypes)
-
-        return self.__handle_chunk(s, sname, h=h, w=w)
-
+        return RawDataChunks(chunks=(self._handle_chunk(chunk, sname, h=h, w=w) for chunk in s.chunks),
+                                shapes=shapes,
+                                dtypes=dtypes)
 
     @override
-    def __call__(self, datamodel: EventDataModel) -> RawDataModel:
+    def __call__(self, datamodel: EventDataModel | EventDataChunksModel) -> RawDataModel | RawDataChunksModel:
         """Construct frames from events of the same sample of a :class:`qualia_plugin_snn.datamodel.EventDataModel.EventDataModel`.
 
         Relies on sample indices (begin, end) from the info array to only collect events from the same sample.
@@ -206,17 +204,23 @@ class IntegrateEventsByFixedDuration(Preprocessing[EventDataModel, RawDataModel]
         :param datamodel: The input event-based dataset
         :return: The new frame dataset
         """
-        sets: dict[str, RawData | RawDataChunks] = {}
-        for sname, s in datamodel:
-            sets[sname] = self.__handle_chunks(s, sname, h=datamodel.h, w=datamodel.w)
+        if isinstance(datamodel, EventDataChunksModel):
+            sets_chunks = {sname: self.__handle_chunks(s, sname, h=datamodel.h, w=datamodel.w) for sname, s in datamodel}
+            return RawDataChunksModel(sets=RawDataChunksSets(**sets_chunks), name=datamodel.name)
 
-        return RawDataChunksModel(sets=RawDataChunksSets(**sets), name=datamodel.name)
+        sets = {sname: self._handle_chunk(s, sname, h=datamodel.h, w=datamodel.w) for sname, s in datamodel}
+        return RawDataModel(sets=RawDataSets(**sets), name=datamodel.name)
 
     @override
     def import_data(self, dataset: Dataset[Any]) -> Dataset[Any]:
-        def func() -> RawDataModel:
-            rdm = RawDataChunksModel(name=dataset.name)
-            rdm.import_sets(set_names=dataset.sets)
-            return rdm
+        if isinstance(dataset, EventDatasetChunks):
+            def func() -> RawDataModel:
+                rdm = RawDataChunksModel(name=dataset.name)
+                return rdm.import_sets(set_names=dataset.sets)
+        else:
+            def func() -> RawDataModel:
+                rdm = RawDataModel(name=dataset.name)
+                return rdm.import_sets(set_names=dataset.sets)
+
         dataset.import_data = func  # type: ignore[method-assign]
         return dataset

@@ -67,7 +67,8 @@ class EventDataChunks(RawDataChunks):
         The returned array is of type `:class:EventData` since data is loaded from single files and not by chunks.
 
         :param path: Location of the preprocessed data folder
-        :return: `:class:EventData` object with ``x``, ``y`` and ``info`` pointing to memory-mapped arrays"""
+        :return: `:class:EventData` object with ``x``, ``y`` and ``info`` pointing to memory-mapped arrays
+        """
         start = time.time()
 
         for fname in ['data.npy', 'labels.npy', 'info.npy']:
@@ -113,7 +114,7 @@ class EventDataModel(DataModel[EventData]):
     def import_sets(self,
                     set_names: list[str] | None = None,
                     sets_cls: type[DataModel.Sets[EventData]] = EventDataSets,
-                    importer: Callable[[Path], EventData | None] = EventData.import_data) -> None:
+                    importer: Callable[[Path], EventData | None] = EventData.import_data) -> EventDataModel:
         set_names = set_names if set_names is not None else list(EventDataSets.fieldnames())
 
         sets_dict = self._import_data_sets(name=self.name, set_names=set_names, importer=importer)
@@ -121,12 +122,14 @@ class EventDataModel(DataModel[EventData]):
         if sets_dict is not None:
             self.sets = sets_cls(**sets_dict)
 
+        return self
+
 
 class EventDataChunksSets(DataModel.Sets[EventDataChunks]):
     """Container for event-based dataset partitions."""
 
 
-class EventDataChunksModel(DataModel[EventDataChunks]):
+class EventDataChunksModel(DataModel[EventDataChunks, EventData]):
     """Container for event-based data model."""
 
     sets: DataModel.Sets[EventDataChunks]
@@ -150,11 +153,15 @@ class EventDataChunksModel(DataModel[EventDataChunks]):
     @override
     def import_sets(self,
                     set_names: list[str] | None = None,
-                    sets_cls: type[DataModel.Sets[EventDataChunks]] = EventDataChunksSets,
-                    importer: Callable[[Path], EventData | None] = EventDataChunks.import_data) -> None:
+                    sets_cls: type[DataModel.Sets[EventData]] = EventDataSets,
+                    importer: Callable[[Path], EventData | None] = EventDataChunks.import_data) -> EventDataModel:
         set_names = set_names if set_names is not None else list(EventDataSets.fieldnames())
 
         sets_dict = self._import_data_sets(name=self.name, set_names=set_names, importer=importer)
 
-        if sets_dict is not None:
-            self.sets = sets_cls(**sets_dict)
+        return EventDataModel(
+            name=self.name,
+            h=self.h,
+            w=self.w,
+            sets=sets_cls(**sets_dict) if sets_dict is not None else None,
+        )

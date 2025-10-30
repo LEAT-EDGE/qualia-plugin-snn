@@ -85,7 +85,6 @@ python_version = "3.9"
 strict = true
 show_column_numbers = true
 pretty = true
-plugins = "numpy.typing.mypy_plugin"
 
 [tool.pylsp-mypy]
 enabled = true
