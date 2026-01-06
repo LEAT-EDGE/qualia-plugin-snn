@@ -13,6 +13,7 @@ from qualia_core.typing import TYPE_CHECKING
 from spikingjelly.activation_based import functional
 
 import qualia_plugin_snn
+import qualia_plugin_snn.experimenttracking.pytorch
 import qualia_plugin_snn.learningmodel.pytorch
 
 # We are inside a TYPE_CHECKING block but our custom TYPE_CHECKING constant triggers TCH001-TCH003 so ignore them
@@ -35,6 +36,16 @@ class SpikingJelly(PyTorch):
     :attr:`qualia_core.learningframework.PyTorch.PyTorch.learningmodels` are replaced by the Spiking Neural Networks
     from :mod:`qualia_plugin_snn.learningmodel.pytorch`
     """
+
+    experimenttrackings: ModuleType = PyTorch.experimenttrackings
+    """:mod:`qualia_plugin_snn.experimenttracking.pytorch` additional experimenttrackings for Spiking Neural Networks.
+
+    Merged to :attr:`qualia_core.learningframework.PyTorch.PyTorch.experimenttrackings`.
+
+    :meta hide-value:
+    """
+    # Merge Qualia-Plugin-SNN experimenttrackings to Qualia-Core experimenttrackings.
+    experimenttrackings.__dict__.update(qualia_plugin_snn.experimenttracking.pytorch.__dict__)
 
     learningmodels: ModuleType = qualia_plugin_snn.learningmodel.pytorch
     """:mod:`qualia_plugin_snn.learningmodel.pytorch` additional learningmodels for Spiking Neural Networks.
