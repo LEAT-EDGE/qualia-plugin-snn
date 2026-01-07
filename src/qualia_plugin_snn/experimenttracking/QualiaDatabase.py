@@ -224,23 +224,25 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
         _ = self._cur.execute(self.__queries_snn['insert_model_operationcounter'], operationcounter_data)
         self._con.commit()
 
-    def __print_model_operationcounter(self, operationcounter: dict[str, Any]) -> None:
+    def __print_model_operationcounter(self, operationcounter: dict[str, Any]) -> str:
         max_name_length = max(len(k) for k in operationcounter)
 
         operationcounter.pop('id')
         operationcounter.pop('model_id')
 
-        print('Operation counter:')
+        s = 'Operation counter:\n'
         for k, v in dict(operationcounter).items():
-            print(f'    {k}: {" " * (max_name_length - len(k))}{v}')
+            s += f'    {k}: {" " * (max_name_length - len(k))}{v}\n'
+
+        return s
 
     @override
-    def _print_model(self, model: dict[str, Any]) -> None:
-        super()._print_model(model)
+    def _print_model(self, model: dict[str, Any]) -> str:
+        s = super()._print_model(model)
 
         if not self._cur:
             logger.error('Database not initialized')
-            return
+            return ''
 
         model_id = model['id']
 
@@ -248,12 +250,14 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
 
         if model_snn:
             is_snn = bool(model_snn['is_snn'])
-            print(f'SNN:              {is_snn}')
-            print(f'Timesteps:        {model_snn["timesteps"]}')
+            s += f'SNN:              {is_snn}\n'
+            s += f'Timesteps:        {model_snn["timesteps"]}\n'
 
         model_operationcounter = self.__get_model_operationcounter(self._cur, model_id=model_id)
         if model_operationcounter:
-            self.__print_model_operationcounter(dict(model_operationcounter))
+            s += self.__print_model_operationcounter(dict(model_operationcounter))
+
+        return s
 
     @property
     def __sql_schema_version_snn(self) -> int:
