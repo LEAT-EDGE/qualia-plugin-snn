@@ -8,6 +8,8 @@ from typing import Any, Final
 from qualia_core.experimenttracking.QualiaDatabase import QualiaDatabase as QualiaDatabaseQualiaCore
 from qualia_core.typing import TYPE_CHECKING
 
+from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
+
 if TYPE_CHECKING:
     from qualia_core.qualia import TrainResult
 
@@ -25,6 +27,7 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
     CREATE TABLE IF NOT EXISTS models_snn (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         model_id INTEGER,
+        is_snn INTEGER,
         timesteps INTEGER,
 
         UNIQUE(model_id),
@@ -34,6 +37,9 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
 
     # Incremental schema extension upgrades
     __sql_schema_upgrades_snn: Final[list[str]] = [
+        """
+        ALTER TABLE models_snn ADD COLUMN is_snn INTEGER;
+        """,
     ]
 
     __queries_snn: Final[dict[str, str]] = {
@@ -94,8 +100,13 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
             logger.error('Database not initialized')
             return None
 
-        _ = self._cur.execute(self.__queries_snn['insert_model_snn'],
-                              {'model_id': model_id, 'timesteps': trainresult.model.timesteps})
+        snn_metadata = {
+            'model_id': model_id,
+            'is_snn': isinstance(trainresult.model, SNN) or getattr(trainresult.model, 'is_snn', False),
+            'timesteps': getattr(trainresult.model, 'timesteps', 1),
+        }
+
+        _ = self._cur.execute(self.__queries_snn['insert_model_snn'], snn_metadata)
         self._con.commit()
 
     @override
@@ -109,6 +120,8 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
         model_snn = self.__get_model_snn(self._cur, model_id=model['id'])
 
         if model_snn:
+            is_snn = bool(model_snn['is_snn'])
+            print(f'SNN:              {is_snn}')
             print(f'Timesteps:        {model_snn["timesteps"]}')
 
     @property
