@@ -202,6 +202,8 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
         _ = self._cur.execute(self.__queries_snn['insert_model_snn'], snn_metadata)
         self._con.commit()
 
+        return model_id
+
     def log_operationcounter(self, model_hash: str, oms: list[OperationMetrics]) -> None:
         if not self._con or not self._cur:
             logger.error('Database not initialized')
