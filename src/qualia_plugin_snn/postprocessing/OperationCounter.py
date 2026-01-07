@@ -13,6 +13,7 @@ from qualia_core.typing import TYPE_CHECKING, ModelConfigDict
 from qualia_core.utils.logger import Logger
 from qualia_core.utils.logger.CSVFormatter import CSVFormatter
 
+from qualia_plugin_snn.experimenttracking.QualiaDatabase import QualiaDatabase
 from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 
 from .EnergyEstimationMetric import EnergyEstimationMetric
@@ -159,6 +160,10 @@ class OperationMetrics:
                                             total_acc=self.total_acc,
                                             total_mac=self.total_mac)
 
+    def asdict(self) -> dict[str, str | Number | None]:
+        return {**dataclasses.asdict(self),
+                'total_acc': self.total_acc,
+                'total_mac': self.total_mac}
 
 class OperationCounter(EnergyEstimationMetric):
     r"""Operation counter metric.
@@ -693,5 +698,8 @@ class OperationCounter(EnergyEstimationMetric):
 
         logger.info(('Estimated operation count for one inference and spike rate per neuron per timestep:\n%s'),
                     self._operations_summary(oms))
+
+        if trainresult.experimenttracking and isinstance(trainresult.experimenttracking, QualiaDatabase):
+            trainresult.experimenttracking.log_operationcounter(trainresult.model_hash, oms)
 
         return trainresult, model_conf
