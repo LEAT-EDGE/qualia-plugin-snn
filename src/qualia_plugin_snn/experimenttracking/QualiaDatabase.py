@@ -37,8 +37,8 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
     ]
 
     __queries_snn: Final[dict[str, str]] = {
-        'get_schema_version_snn': "SELECT schema_version FROM plugins WHERE name = 'qualia-plugin-snn'",
-        'set_schema_version_snn': "INSERT OR REPLACE INTO plugins(name, schema_version) VALUES ('qualia-plugin-snn', :version)",
+        'get_schema_version_snn': "SELECT schema_version FROM plugins WHERE name = 'qualia_plugin_snn'",
+        'set_schema_version_snn': "INSERT OR REPLACE INTO plugins(name, schema_version) VALUES ('qualia_plugin_snn', :version)",
         'insert_model_snn': 'INSERT OR REPLACE INTO models_snn(model_id, timesteps) VALUES(:model_id, :timesteps)',
         'get_model_snn': 'SELECT * from models_snn WHERE model_id = :model_id',
     }
