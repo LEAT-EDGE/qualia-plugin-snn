@@ -97,7 +97,8 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
     __queries_snn: Final[dict[str, str]] = {
         'get_schema_version_snn': "SELECT schema_version FROM plugins WHERE name = 'qualia_plugin_snn'",
         'set_schema_version_snn': "INSERT OR REPLACE INTO plugins(name, schema_version) VALUES ('qualia_plugin_snn', :version)",
-        'insert_model_snn': 'INSERT OR REPLACE INTO models_snn(model_id, timesteps) VALUES(:model_id, :timesteps)',
+        'insert_model_snn': """INSERT OR REPLACE INTO models_snn(model_id, timesteps, is_snn)
+            VALUES(:model_id, :timesteps, :is_snn)""",
         'insert_model_operationcounter': """INSERT OR REPLACE INTO models_operationcounter(
             model_id,
             syn_acc,
@@ -190,9 +191,11 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
             logger.error('Database not initialized')
             return None
 
+        is_snn = 1 if isinstance(trainresult.model, SNN) or getattr(trainresult.model, 'is_snn', False) else 0
+
         snn_metadata = {
             'model_id': model_id,
-            'is_snn': isinstance(trainresult.model, SNN) or getattr(trainresult.model, 'is_snn', False),
+            'is_snn': is_snn,
             'timesteps': getattr(trainresult.model, 'timesteps', 1),
         }
 
