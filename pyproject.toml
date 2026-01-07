@@ -22,7 +22,7 @@ dependencies = [
     'torch',
     'spikingjelly',
     'typing_extensions; python_version < "3.12"',
-
+    'h5py', # required by spikingjelly
 ]
 dynamic = ["version"]
 
