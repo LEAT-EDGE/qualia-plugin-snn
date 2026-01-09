@@ -1,6 +1,7 @@
+"""Provide the QualiaDatabase class extension for Spiking Neural Network tracking."""
+
 from __future__ import annotations
 
-import dataclasses
 import logging
 import sqlite3
 import sys
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class QualiaDatabase(QualiaDatabaseQualiaCore):
+    """Extend :class:`qualia_core.experimenttracking.QualiaDatabase.QualiaDatabase` with support for Spiking Neural Networks."""
+
     # Latest schema extension to create fresh tables
     __sql_schema_snn: Final[str] = """
     CREATE TABLE IF NOT EXISTS models_snn (
@@ -205,6 +208,11 @@ class QualiaDatabase(QualiaDatabaseQualiaCore):
         return model_id
 
     def log_operationcounter(self, model_hash: str, oms: list[OperationMetrics]) -> None:
+        """Record :class:`qualia_plugin_snn.postprocessing.OperationCounter.OperationCounter` Total result in database.
+
+        :param model_hash: hash of model to associate database record to
+        :param oms: :class:`qualia_plugin_snn.postprocessing.OperationCounter.OperationCounter` results
+        """
         if not self._con or not self._cur:
             logger.error('Database not initialized')
             return

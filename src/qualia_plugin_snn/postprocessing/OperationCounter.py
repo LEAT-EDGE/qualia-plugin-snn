@@ -161,9 +161,14 @@ class OperationMetrics:
                                             total_mac=self.total_mac)
 
     def asdict(self) -> dict[str, str | Number | None]:
+        """Return the data from this class as a dictionary.
+
+        :return: a dictionary with each attribute and property of this dataclass as keys and the associated values
+        """
         return {**dataclasses.asdict(self),
                 'total_acc': self.total_acc,
                 'total_mac': self.total_mac}
+
 
 class OperationCounter(EnergyEstimationMetric):
     r"""Operation counter metric.
