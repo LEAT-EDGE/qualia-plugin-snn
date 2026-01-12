@@ -29,8 +29,9 @@ else:
 logger = logging.getLogger(__name__)
 
 
-class EventDataInfoRecord(np.record):
-    """Container for being and end index of event sample."""
+# Inheritance propagates back to np.flexible which is @final, even though np.record is not, ignore typing error
+class EventDataInfoRecord(np.record):  # type: ignore[misc]
+    """Container for begin and end index of event sample."""
 
     begin: np.int64
     end: np.int64
@@ -39,7 +40,7 @@ class EventDataInfoRecord(np.record):
 class EventDataInfo(np.recarray[tuple[int], np.dtype[EventDataInfoRecord]]):
     """Array of `:class:EventDataInfoRecord` for event sample index tracking."""
 
-    __module__: Literal['numpy'] = 'numpy'
+    __module__: Literal['numpy.rec'] = 'numpy.rec'
 
     def __new__(cls, shape: tuple[int, ...]) -> Self:
         """Create a new array with the given shape. Data type is implicitely set to the `:class:EventDataInfoRecord` fields."""

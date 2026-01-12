@@ -705,6 +705,9 @@ class OperationCounter(EnergyEstimationMetric):
                     self._operations_summary(oms))
 
         if trainresult.experimenttracking and isinstance(trainresult.experimenttracking, QualiaDatabase):
-            trainresult.experimenttracking.log_operationcounter(trainresult.model_hash, oms)
+            if not trainresult.model_hash:
+                logger.error('Missing model hash, cannot record OperationCounter in QualiaDatabase')
+            else:
+                trainresult.experimenttracking.log_operationcounter(trainresult.model_hash, oms)
 
         return trainresult, model_conf
