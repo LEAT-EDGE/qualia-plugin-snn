@@ -195,6 +195,17 @@ class QuantizedLIFNode(LIFNode,  # type: ignore[misc]
 
     @property
     @override
+    def weights_bits(self) -> int | None:
+        """Total number of bits used to encode the membrane potential and hyperparameters in case of fixed-point quantization.
+
+        See :meth:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer.bits`.
+
+        :return: Total bits for the membrane potential and hyperparameters or ``None`` if not applicable.
+        """
+        return self.quantizer_v.bits
+
+    @property
+    @override
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
@@ -347,6 +358,17 @@ class QuantizedIFNode(IFNode,  # type: ignore[misc]
 
     @property
     @override
+    def weights_bits(self) -> int | None:
+        """Total number of bits used to encode the membrane potential and hyperparameters in case of fixed-point quantization.
+
+        See :meth:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer.bits`.
+
+        :return: Total bits for the membrane potential and hyperparameters or ``None`` if not applicable.
+        """
+        return self.quantizer_v.bits
+
+    @property
+    @override
     def weights_q(self) -> int | None:
         """Number of fractional part bits for the membrane potential and hyperparameters in case of fixed-point quantization.
 
@@ -443,6 +465,17 @@ class QuantizedATIF(ATIF,
         :param v_threshold: New Tensor of quantized threshold to replace :attr:`v_threshold`
         """
         _ = self.v_threshold.copy_(self.quantizer_v(v_threshold))
+
+    @property
+    @override
+    def weights_bits(self) -> int | None:
+        """Total number of bits used to encode the membrane potential and hyperparameters in case of fixed-point quantization.
+
+        See :meth:`qualia_core.learningmodel.pytorch.layers.Quantizer.Quantizer.bits`.
+
+        :return: Total bits for the membrane potential and hyperparameters or ``None`` if not applicable.
+        """
+        return self.quantizer_v.bits
 
     @property
     @override
