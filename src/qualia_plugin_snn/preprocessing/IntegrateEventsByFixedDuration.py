@@ -101,17 +101,18 @@ class IntegrateEventsByFixedDuration(Preprocessing[Union[EventDataModel, EventDa
         :param w: Width of the frame
         :return: Frame after integration and labels after reduction
         """
-        n = events.t.size
+        t: np.ndarray[Any, np.dtype[np.int64]] = events.t
+        n = np.intp(t.size)
 
         # Origin at first event timestamp
-        events.t -= events.t.min()
+        t -= t.min()
 
-        frames_num = int(np.ceil(events.t[-1] / self.__duration))
+        frames_num = int(np.ceil(t[-1] / self.__duration))
         if not hasattr(events, 'y'):  # 1D Data
             frames = np.zeros([frames_num, 2, w], dtype=np.float32)
         else:
             frames = np.zeros([frames_num, 2, h, w], dtype=np.float32)
-        frame_index = events.t // self.__duration
+        frame_index = t // self.__duration
         left = np.intp(0)
 
         reduced_labels: np.ndarray[Any, Any] = np.ndarray((frames_num,), dtype=labels.dtype)
