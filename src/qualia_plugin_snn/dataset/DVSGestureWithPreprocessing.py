@@ -14,6 +14,7 @@ from typing import Any, Callable
 
 import numpy as np
 import numpy.typing as npt
+from qualia_codegen_core.typing import TYPE_CHECKING
 from qualia_core.datamodel import RawDataModel
 from qualia_core.datamodel.RawDataModel import RawData
 from qualia_core.dataset.RawDataset import RawDataset
@@ -21,6 +22,12 @@ from qualia_core.utils.process.init_process import init_process
 from qualia_core.utils.process.SharedMemoryManager import SharedMemoryManager
 from spikingjelly.datasets import integrate_events_by_fixed_duration  # type: ignore[import-untyped]
 from spikingjelly.datasets.dvs128_gesture import DVS128Gesture  # type: ignore[import-untyped]
+
+if TYPE_CHECKING:
+    if sys.version_info >= (3, 10):
+        from typing import TypeGuard
+    else:
+        from typing_extensions import TypeGuard
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -70,6 +77,10 @@ class DVSGestureWithPreprocessing(RawDataset):
                              data_array: npt.NDArray[np.float32] |
                                          npt.NDArray[np.int32]) -> SharedMemoryArrayReturnT:
         data_buffer = smm.SharedMemory(size=data_array.nbytes)
+        if data_buffer.buf is None:
+            logger.error('Shared memory buffer is invalid')
+            raise RuntimeError
+
         data_shared = np.frombuffer(data_buffer.buf, count=data_array.size, dtype=data_array.dtype).reshape(data_array.shape)
 
         np.copyto(data_shared, data_array)
@@ -133,11 +144,16 @@ class DVSGestureWithPreprocessing(RawDataset):
         logger.info('Process %s finished in %s s.', i, time.time() - start)
         return data_ret, labels_ret
 
+    @staticmethod
+    def __is_no_bufs_none(bufs: list[memoryview[Any] | None]) -> TypeGuard[memoryview[Any]]:
+        return not any(buf is None for buf in bufs)
+
     def __dvs128gesture_to_data(self, dvs128gesture: DVS128Gesture) -> RawData:
         """Parallel loading and processing of event data to construct frames and timesteps.
 
         :param dvs128gesture: SpikingJelly DVS128Gesture loader
         :return: Frame and timesteps data and labels
+        :raise RuntimeError: If a SharedMemory buffer is invalid (use after close)
         """
         samples = len(dvs128gesture)
         cpus: int | None = os.cpu_count()
@@ -159,9 +175,14 @@ class DVSGestureWithPreprocessing(RawDataset):
                 shapes = [resloader(f.result())[1] for f in futures]
                 dtypes = [resloader(f.result())[2] for f in futures]
                 bufs = [SharedMemory(n) for n in names]
+                raw_bufs = [buf.buf for buf in bufs]
 
-                data_list = [np.frombuffer(buf.buf, count=math.prod(shape), dtype=dtype).reshape(shape)
-                          for shape, dtype, buf in zip(shapes, dtypes, bufs)]
+                if not self.__is_no_bufs_none(raw_bufs):
+                    logger.error('Shared memory buffer is invalid')
+                    raise RuntimeError
+
+                data_list = [np.frombuffer(buf, count=math.prod(shape), dtype=dtype).reshape(shape)
+                          for shape, dtype, buf in zip(shapes, dtypes, raw_bufs)]
 
                 data_array: np.ndarray[Any, Any] = np.concatenate(data_list)
                 del data_list
