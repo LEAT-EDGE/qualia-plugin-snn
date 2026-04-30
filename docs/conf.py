@@ -88,7 +88,7 @@ html_theme_options = {
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
-    'PyTorch': ('https://pytorch.org/docs/stable/', None),
+    'PyTorch': ('https://docs.pytorch.org/docs/main/', None),
     'spikingjelly': ('https://spikingjelly.readthedocs.io/zh_CN/latest/', None),
     'qualia_core': (f'{qualia_doc_base_url}/qualia-core', None),
     'qualia_codegen_core': (f'{qualia_doc_base_url}/qualia-codegen-core', None),
