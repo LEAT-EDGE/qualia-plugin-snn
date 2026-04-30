@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 import sys
+from typing import TYPE_CHECKING as NATIVE_TYPE_CHECKING
 from typing import Any, Final
 
 from qualia_core.experimenttracking.QualiaDatabase import QualiaDatabase as QualiaDatabaseQualiaCore
@@ -15,6 +16,7 @@ from qualia_plugin_snn.learningmodel.pytorch.SNN import SNN
 if TYPE_CHECKING:
     from qualia_core.qualia import TrainResult
 
+if NATIVE_TYPE_CHECKING:
     from qualia_plugin_snn.postprocessing.OperationCounter import OperationMetrics
 
 if sys.version_info >= (3, 12):
