@@ -36,7 +36,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install .[docs,codegen] keras
+        run: pip install .[docs,codegen] keras tensorflow
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Build documentation
